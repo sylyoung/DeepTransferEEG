@@ -27,19 +27,21 @@ try:
     from alg_utils import EA
     from loss import ClassConfusionLoss, Entropy
     from models.cotta import CoTTA
-    from models.sar import SAR, SAM
-    import models.sar as sar
+    # from models.sar import SAR, SAM
+    from models.sam import SAM
+    # import models.sar as sar
 except:
     from utils.alg_utils import EA
     from models.cotta import CoTTA
     from utils.loss import ClassConfusionLoss, Entropy
-    from models.sar import SAR, SAM
-    import models.sar as sar
+    # from models.sar import SAR, SAM
+    from models.sam import SAM
+    # import models.sar as sar
 
-from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2014008, BNCI2014009, BNCI2015003, BNCI2015004, EPFLP300, BNCI2014004, BNCI2015001
+from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2014008, BNCI2014009, BNCI2015003, BNCI2015004, EPFLP300, \
+    BNCI2014004, BNCI2015001
 from moabb.paradigms import MotorImagery, P300
 from sklearn.metrics import roc_auc_score
-
 
 
 def split_data(data, axis, times):
@@ -230,8 +232,8 @@ def cal_auc(loader, netF, netC):
                 all_output = tr.cat((all_output, outputs.float().cpu()), 0)
                 all_label = tr.cat((all_label, labels), 0)
     all_output = nn.Softmax(dim=1)(all_output)
-    #_, predict = tr.max(all_output, 1)
-    #pred = tr.squeeze(predict).float()
+    # _, predict = tr.max(all_output, 1)
+    # pred = tr.squeeze(predict).float()
     true = all_label.cpu()
     pred = all_output[:, 1].detach().numpy()
     auc = roc_auc_score(true, pred)
@@ -246,7 +248,7 @@ def cal_acc_comb(loader, model, flag=True, fc=None):
             data = next(iter_test)
             inputs = data[0]
             labels = data[1]
-            #inputs = inputs.cuda()
+            # inputs = inputs.cuda()
             inputs = inputs
             if flag:
                 _, outputs = model(inputs)
@@ -335,7 +337,8 @@ def cal_acc_online_testBN(loader, model, args, balanced=True, flag=True, fc=None
     y_true = []
     y_pred = []
 
-    optimizer = torch.optim.Adam(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(model[0].block2[3].parameters()), lr=args.lr)
+    optimizer = torch.optim.Adam(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(
+        model[0].block2[3].parameters()), lr=args.lr)
 
     iter_test = iter(loader)
     for i in range(len(loader)):
@@ -393,7 +396,8 @@ def cal_acc_online_testBN(loader, model, args, balanced=True, flag=True, fc=None
             model[0].block1[4].train()
             model[0].block2[3].train()
 
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                     i - args.test_batch + 1:i + 1]
             inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
 
             inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -412,7 +416,8 @@ def cal_acc_online_testBN(loader, model, args, balanced=True, flag=True, fc=None
 
                 outputs = outputs.float().cpu()
                 criterion = nn.CrossEntropyLoss()
-                classifier_loss = criterion(outputs, labels_cum[i-args.test_batch+1:i+1].reshape(-1,).to(tr.long))
+                classifier_loss = criterion(outputs,
+                                            labels_cum[i - args.test_batch + 1:i + 1].reshape(-1, ).to(tr.long))
                 classifier_loss.backward()  # fake backprop, only updates BN
 
                 optimizer.step()
@@ -434,8 +439,9 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
     y_true = []
     y_pred = []
 
-    optimizer = torch.optim.Adam(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(model[0].block2[3].parameters()), lr=args.lr)
-    #optimizer = torch.optim.SGD(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(model[0].block2[3].parameters()), lr=args.lr, momentum=0.9)
+    optimizer = torch.optim.Adam(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(
+        model[0].block2[3].parameters()), lr=args.lr)
+    # optimizer = torch.optim.SGD(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(model[0].block2[3].parameters()), lr=args.lr, momentum=0.9)
 
     model[0].block1[2].track_running_stats = False
     model[0].block1[4].running_mean = None
@@ -443,7 +449,7 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
 
     iter_test = iter(loader)
     for i in range(len(loader)):
-        #model.eval()
+        # model.eval()
         model.train()
         data = next(iter_test)
         inputs = data[0]
@@ -498,7 +504,8 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
             model[0].block1[4].train()
             model[0].block2[3].train()
 
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                     i - args.test_batch + 1:i + 1]
             inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
 
             inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -525,7 +532,7 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
             model[0].block1[2].eval()
             model[0].block1[4].eval()
             model[0].block2[3].eval()
-            #model.eval()
+            # model.eval()
 
     if balanced:
         score = accuracy_score(y_true, y_pred)
@@ -659,7 +666,7 @@ def cal_acc_T3A(loader, model, args, balanced=True, flag=True, fc=None, weights=
             pred = tr.squeeze(predict).float()
 
             ent_records[id_] = np.append(ent_records[id_], np.round(ent.cpu().item(), 4))
-            #ent_records[id_].append(np.round(ent.cpu().item(), 4))
+            # ent_records[id_].append(np.round(ent.cpu().item(), 4))
             protos[id_].append(features_test.reshape(feature_dim).cpu())
 
             print(len(protos[0]), len(protos[1]))
@@ -692,7 +699,7 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
     y_true = []
     y_pred = []
     results = []
-    #ents = []
+    # ents = []
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     if 'BN-adapt' in args.method:
@@ -701,20 +708,20 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 model[0].block2[3].parameters()), lr=args.lr)
 
     # RIM
-    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     # for DELTA
     z = [1 / 2, 1 / 2]
-    #z = [2 / 3, 1 / 3]
+    # z = [2 / 3, 1 / 3]
 
-    #c0 = 4 / 5
-    #c1 = 1 / 5
+    # c0 = 4 / 5
+    # c1 = 1 / 5
 
-    #c0 = 2 / 3
-    #c1 = 1 / 3
+    # c0 = 2 / 3
+    # c1 = 1 / 3
 
-    #c0 = 1 / 2
-    #c1 = 1 / 2
+    # c0 = 1 / 2
+    # c1 = 1 / 2
 
     c0_ids = []
     c1_ids = []
@@ -724,7 +731,7 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
     iter_test = iter(loader)
     for i in range(len(loader)):
 
-        #print('sample ', str(i), ', input')
+        # print('sample ', str(i), ', input')
 
         model.eval()
         data = next(iter_test)
@@ -740,11 +747,15 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
 
         start_time = time.time()
         if args.align:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+            if 'ShallowFBCSPNet' in args.backbone:
+                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[i]
+                inputs = inputs.reshape(1, inputs.shape[0], inputs.shape[1], 1)
+            else:
+                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
+                inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
         EA_time = time.time()
-        #print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
+        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
 
         if args.data_env != 'local':
             inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -759,8 +770,8 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 outputs = model(inputs)
 
         softmax_out = nn.Softmax(dim=1)(outputs)
-        #ent = Entropy(softmax_out)
-        #ents.append(np.round(ent.item(), 4))
+        # ent = Entropy(softmax_out)
+        # ents.append(np.round(ent.item(), 4))
 
         outputs = outputs.float().cpu()
         labels = labels.float().cpu()
@@ -768,11 +779,11 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
         pred = tr.squeeze(predict).float()
 
         if balanced:
-            #y_pred.append(pred.item())
-            y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
+            # y_pred.append(pred.item())
+            y_pred.append(softmax_out.detach().numpy())
             y_true.append(labels.item())
         else:
-            y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
+            y_pred.append(softmax_out.detach().numpy())
             y_true.append(labels.item())
 
         if pred.item() == labels.item():
@@ -783,8 +794,13 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
         # handle very first test sample, postponed due to EA
         if i == 1:
             model.eval()
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+            if args.align:
+                if 'ShallowFBCSPNet' in args.backbone:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[0]
+                    inputs = inputs.reshape(1, inputs.shape[0], inputs.shape[1], 1)
+                else:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
+                    inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
             if args.data_env != 'local':
                 inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -803,11 +819,11 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
             pred = tr.squeeze(predict).float()
 
             if balanced:
-                #y_pred.append(pred.item())
-                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
+                # y_pred.append(pred.item())
+                y_pred.append(softmax_out.detach().numpy())
                 y_true.append(labels.item())
             else:
-                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
+                y_pred.append(softmax_out.detach().numpy())
                 y_true.append(labels.item())
             if pred.item() == labels.item():
                 results.append(1)
@@ -815,12 +831,18 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 results.append(0)
 
         model.train()
-        #if (i + 1) % args.test_batch == 0:  # accumulative
-        if (i + 1) >= args.test_batch:  # sliding
-        #if False:
-
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
-            inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
+        # if (i + 1) % args.test_batch == 0:  # accumulative
+        if (i + 1) >= args.test_batch and (i + 1) % 2 == 0:  # sliding
+            # if False:
+            if args.align:
+                if 'ShallowFBCSPNet' in args.backbone:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, inputs.shape[1], inputs.shape[2], 1)
+                else:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
             start_time = time.time()
             """
             #if (i + 1) > args.test_batch:
@@ -886,12 +908,12 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
             for step in range(args.steps):
 
                 # SAR / Filtering
-                #model.eval()
+                # model.eval()
 
                 if flag:
                     _, outputs = model(inputs)
                     # for ISFDA
-                    #embds, outputs = model(inputs)
+                    # embds, outputs = model(inputs)
                 else:
                     if fc is not None:
                         outputs, _ = model(inputs)  # modified
@@ -969,13 +991,13 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
 
                 # IM
                 args.t = 2  # temperature rescaling
-                #args.t = 2 - i / 200  # adaptive temperature rescaling
+                # args.t = 2 - i / 200  # adaptive temperature rescaling
                 args.epsilon = 1e-5
                 softmax_out = nn.Softmax(dim=1)(outputs / args.t)
 
                 entropy_loss = tr.mean(Entropy(softmax_out))
                 msoftmax = softmax_out.mean(dim=0)
-                #gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
+                gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
 
                 '''
                 # SAR filtering
@@ -992,7 +1014,7 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 if flag:
                     _, outputs = model(inputs)
                     # for ISFDA
-                    embds, outputs = model(inputs)
+                    #embds, outputs = model(inputs)
                 else:
                     if fc is not None:
                         outputs, _ = model(inputs)  # modified
@@ -1058,17 +1080,19 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 pl = torch.max(softmax_out, 1)[1]
                 class_0_num = len(torch.where(pl == 0)[0])
                 class_1_num = len(torch.where(pl == 1)[0])
-                
+
                 # threshold for "fuzzy" labels， use with class dist
                 for l in range(args.test_batch):
                     if softmax_out[l][0] > 0.4 and softmax_out[l][0] < 0.5:
                         class_0_num += 1
                     elif softmax_out[l][0] >= 0.5 and softmax_out[l][0] < 0.6:
                         class_1_num += 1
-                
+
                 print(class_0_num, class_1_num)
                 '''
-                
+
+                """
+                # T-TIME: Adaptive Marginal Label Distribution Entropy Regularization
                 norm_msoftmax = torch.tensor([0., 0.]).to(torch.float32)
 
                 c0 = (len(c0_ids) + 4) / (len(c0_ids) + len(c1_ids) + 4)
@@ -1081,20 +1105,18 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 normed_msoftmax = torch.tensor([0., 0.]).to(torch.float32)
                 normed_msoftmax[0] = norm_msoftmax[0] / sum_msoftmax
                 normed_msoftmax[1] = norm_msoftmax[1] / sum_msoftmax
-                #print(msoftmax)
-                #print(normed_msoftmax)
 
                 gentropy_loss = tr.sum(normed_msoftmax * tr.log(normed_msoftmax + args.epsilon))
-
-                #args.lambda_ada = 0.9
+                """
+                # args.lambda_ada = 0.9
                 # on prediction probs
-                #if (i + 1) % args.test_batch == 0:
-                #c0 = args.lambda_ada * c0 + msoftmax[0].detach().cpu().numpy() * (1 - args.lambda_ada)
-                #c1 = args.lambda_ada * c1 + msoftmax[1].detach().cpu().numpy() * (1 - args.lambda_ada)
+                # if (i + 1) % args.test_batch == 0:
+                # c0 = args.lambda_ada * c0 + msoftmax[0].detach().cpu().numpy() * (1 - args.lambda_ada)
+                # c1 = args.lambda_ada * c1 + msoftmax[1].detach().cpu().numpy() * (1 - args.lambda_ada)
                 # on class dist
-                #c0 = args.lambda_ada * c0 + (class_0_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
-                #c1 = args.lambda_ada * c1 + (class_1_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
-                #print(c0, c1)
+                # c0 = args.lambda_ada * c0 + (class_0_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
+                # c1 = args.lambda_ada * c1 + (class_1_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
+                # print(c0, c1)
 
                 '''
                 # ISFDA
@@ -1139,18 +1161,20 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 #im_loss = entropy_loss + gentropy_loss + dist_loss * args.dist_weight
                 '''
 
-                #print(entropy_loss, gentropy_loss, dist_loss)
+                # print(entropy_loss, gentropy_loss, dist_loss)
 
                 im_loss = entropy_loss + gentropy_loss
                 loss = im_loss
-                #loss = entropy_loss
-                #loss = classifier_loss
+                # loss = entropy_loss
+                # loss = classifier_loss
 
                 loss.backward()
                 optimizer.step()
 
             model.eval()
 
+            """
+            # T-TIME: Adaptive Marginal Label Distribution Entropy Regularization
             if i + 1 == args.test_batch:
                 args.pred_thresh = 0.7
                 pl = torch.max(softmax_out, 1)[1]
@@ -1198,9 +1222,10 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                         ratio -= 1
                 #print('updated_ratio:', ratio)
                 '''
+            """
 
         TTA_time = time.time()
-        #print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
+        # print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
 
         '''
         # entropy calculation
@@ -1265,16 +1290,187 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
         else:
             results.append(0)
         """
-    #print('unsure:', len(inconf_ids), np.round(len(inconf_ids) / args.trial_num, 3), inconf_ids)
+    # print('unsure:', len(inconf_ids), np.round(len(inconf_ids) / args.trial_num, 3), inconf_ids)
 
     if balanced:
         _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
         pred = tr.squeeze(predict).float()
         score = accuracy_score(y_true, pred)
-        y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]
+        # y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]  # binary
+        y_pred = np.array(y_pred).reshape(-1, )  # multiclass
     else:
-        y_pred = np.concatenate(y_pred)[:, 1]
-        score = roc_auc_score(y_true, y_pred)
+        # y_pred = np.concatenate(y_pred)[:, 1]
+        # score = roc_auc_score(y_true, y_pred)
+        _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
+        pred = tr.squeeze(predict).float()
+        score = balanced_accuracy_score(y_true, pred)
+        y_pred = np.array(y_pred).reshape(-1, )
+
+    return score * 100, y_pred
+
+
+def TTA_vanilla(loader, model, args, balanced=True, flag=True, fc=None):
+    y_true = []
+    y_pred = []
+    results = []
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    iter_test = iter(loader)
+    for i in range(len(loader)):
+
+        model.eval()
+        data = next(iter_test)
+        inputs = data[0]
+        labels = data[1]
+        if i == 0:
+            data_cum = inputs.float().cpu()
+            labels_cum = labels.float().cpu()
+            continue
+        else:
+            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
+            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
+
+        start_time = time.time()
+        if args.align:
+            if 'ShallowFBCSPNet' in args.backbone:
+                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[i]
+                inputs = inputs.reshape(1, inputs.shape[0], inputs.shape[1], 1)
+            else:
+                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
+                inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+
+        if args.data_env != 'local':
+            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+        else:
+            inputs = torch.from_numpy(inputs).to(torch.float32)
+        if flag:
+            _, outputs = model(inputs)
+        else:
+            if fc is not None:
+                outputs, _ = model(inputs)  # modified
+            else:
+                outputs = model(inputs)
+
+        softmax_out = nn.Softmax(dim=1)(outputs)
+
+        outputs = outputs.float().cpu()
+        labels = labels.float().cpu()
+        _, predict = tr.max(outputs, 1)
+        pred = tr.squeeze(predict).float()
+
+        if balanced:
+            y_pred.append(softmax_out.detach().numpy())
+            y_true.append(labels.item())
+        else:
+            y_pred.append(softmax_out.detach().numpy())
+            y_true.append(labels.item())
+
+        if pred.item() == labels.item():
+            results.append(1)
+        else:
+            results.append(0)
+
+        # handle very first test sample, postponed due to EA
+        if i == 1:
+            model.eval()
+            if args.align:
+                if 'ShallowFBCSPNet' in args.backbone:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[0]
+                    inputs = inputs.reshape(1, inputs.shape[0], inputs.shape[1], 1)
+                else:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
+                    inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+
+            if args.data_env != 'local':
+                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            else:
+                inputs = torch.from_numpy(inputs).to(torch.float32)
+            if flag:
+                _, outputs = model(inputs)
+            else:
+                if fc is not None:
+                    outputs, _ = model(inputs)  # modified
+                else:
+                    outputs = model(inputs)
+
+            outputs = outputs.float().cpu()
+            _, predict = tr.max(outputs, 1)
+            pred = tr.squeeze(predict).float()
+
+            if balanced:
+                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
+                y_true.append(labels.item())
+            else:
+                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
+                y_true.append(labels.item())
+            if pred.item() == labels.item():
+                results.append(1)
+            else:
+                results.append(0)
+
+        model.train()
+        if (i + 1) >= args.test_batch:
+            if args.align:
+                if 'ShallowFBCSPNet' in args.backbone:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, inputs.shape[1], inputs.shape[2], 1)
+                else:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
+            start_time = time.time()
+
+            if args.data_env != 'local':
+                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            else:
+                inputs = torch.from_numpy(inputs).to(torch.float32)
+
+            for step in range(args.steps):
+
+                if flag:
+                    _, outputs = model(inputs)
+                else:
+                    if fc is not None:
+                        outputs, _ = model(inputs)  # modified
+                    else:
+                        outputs = model(inputs)
+
+                optimizer.zero_grad()
+
+                outputs = outputs.float().cpu()
+
+                # IM
+                args.t = 2  # temperature rescaling
+                args.epsilon = 1e-5
+                softmax_out = nn.Softmax(dim=1)(outputs / args.t)
+
+                entropy_loss = tr.mean(Entropy(softmax_out))
+                msoftmax = softmax_out.mean(dim=0)
+                gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
+
+                im_loss = entropy_loss + gentropy_loss
+                loss = im_loss
+
+                loss.backward()
+                optimizer.step()
+
+            model.eval()
+
+    if balanced:
+        _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
+        pred = tr.squeeze(predict).float()
+        score = accuracy_score(y_true, pred)
+        y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]  # binary
+        # y_pred = np.array(y_pred).reshape(-1, )  # multiclass
+    else:
+        # y_pred = np.concatenate(y_pred)[:, 1]
+        # score = roc_auc_score(y_true, y_pred)
+        _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
+        pred = tr.squeeze(predict).float()
+        score = balanced_accuracy_score(y_true, pred)
+        y_pred = np.array(y_pred).reshape(-1, )
 
     return score * 100, y_pred
 
@@ -1283,24 +1479,24 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
     y_true = []
     y_pred = []
     results = []
-    #ents = []
+    # ents = []
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     # RIM
-    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     # for DELTA
-    #z = [1 / 2, 1 / 2]
-    #z = [2 / 3, 1 / 3]
+    # z = [1 / 2, 1 / 2]
+    # z = [2 / 3, 1 / 3]
 
-    #c0 = 4 / 5
-    #c1 = 1 / 5
+    # c0 = 4 / 5
+    # c1 = 1 / 5
 
-    #c0 = 2 / 3
-    #c1 = 1 / 3
+    # c0 = 2 / 3
+    # c1 = 1 / 3
 
-    #c0 = 2 / 3
-    #c1 = 1 / 3
+    # c0 = 2 / 3
+    # c1 = 1 / 3
 
     c0_ids = []
     c1_ids = []
@@ -1308,7 +1504,7 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
     iter_test = iter(loader)
     for i in range(len(loader)):
 
-        #print('sample ', str(i), ', input')
+        # print('sample ', str(i), ', input')
 
         model.eval()
         data = next(iter_test)
@@ -1328,7 +1524,7 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
         EA_time = time.time()
-        #print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
+        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
 
         if args.data_env != 'local':
             inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -1343,8 +1539,8 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
                 outputs = model(inputs)
 
         softmax_out = nn.Softmax(dim=1)(outputs)
-        #ent = Entropy(softmax_out)
-        #ents.append(np.round(ent.item(), 4))
+        # ent = Entropy(softmax_out)
+        # ents.append(np.round(ent.item(), 4))
 
         outputs = outputs.float().cpu()
         labels = labels.float().cpu()
@@ -1400,11 +1596,12 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
 
         model.train()
 
-        #if (i + 1) % args.test_batch == 0:  # accumulative
-        #if (i + 1) >= args.test_batch and (len(c0_ids) < math.ceil(args.test_batch * z[1]) or len(c1_ids) < math.ceil(args.test_batch * z[0])):  # sliding
+        # if (i + 1) % args.test_batch == 0:  # accumulative
+        # if (i + 1) >= args.test_batch and (len(c0_ids) < math.ceil(args.test_batch * z[1]) or len(c1_ids) < math.ceil(args.test_batch * z[0])):  # sliding
         if (i + 1) == args.test_batch:
 
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                     i - args.test_batch + 1:i + 1]
             inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
             if args.data_env != 'local':
                 inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -1465,7 +1662,7 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
 
             aligned = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))
 
-            current_batch = aligned[i-args.test_batch+1:i+1]
+            current_batch = aligned[i - args.test_batch + 1:i + 1]
             append_ids = []
             ind = -1
             ratio = round(args.test_batch * (len(c0_ids) - len(c1_ids)) / max(len(c0_ids), len(c1_ids)))
@@ -1518,7 +1715,7 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
                 if flag:
                     _, outputs = model(inputs)
                     # for ISFDA
-                    #embds, outputs = model(inputs)
+                    # embds, outputs = model(inputs)
                 else:
                     if fc is not None:
                         outputs, _ = model(inputs)  # modified
@@ -1569,7 +1766,7 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
             model.eval()
 
         TTA_time = time.time()
-        #print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
+        # print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
 
     if balanced:
         _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
@@ -1583,19 +1780,16 @@ def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
     return score * 100, y_pred
 
 
-def TTA_CoTTA(loader, model, args, balanced=True, flag=True, fc=None):
+def TTA_LAME(loader, model, args, balanced=True, flag=True, fc=None):
+    # https://github.com/fiveai/LAME
     y_true = []
     y_pred = []
     results = []
-    ents = []
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     iter_test = iter(loader)
     for i in range(len(loader)):
-
-        #print('sample ', str(i), ', input')
 
         model.eval()
         data = next(iter_test)
@@ -1615,16 +1809,14 @@ def TTA_CoTTA(loader, model, args, balanced=True, flag=True, fc=None):
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
         EA_time = time.time()
-        #print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
+        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
 
-        inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+        model.eval()
 
-        model.train()
-
-        tta = CoTTA(model, optimizer)
-        outputs = tta(inputs)
-
-        #_, outputs = model(inputs)
+        inputs = torch.from_numpy(inputs).to(torch.float32)
+        if args.data_env != 'local':
+            inputs = inputs.cuda()
+        _, outputs = model(inputs)
 
         labels = labels.float().cpu()
         _, predict = torch.max(outputs.data, 1)
@@ -1643,13 +1835,16 @@ def TTA_CoTTA(loader, model, args, balanced=True, flag=True, fc=None):
 
         # handle very first test sample, postponed due to EA
         if i == 1:
-            model.train()
+            model.eval()
             inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            tta = CoTTA(model, optimizer)
-            outputs = tta(inputs)
+            model.eval()
+
+            inputs = torch.from_numpy(inputs).to(torch.float32)
+            if args.data_env != 'local':
+                inputs = inputs.cuda()
+            _, outputs = model(inputs)
 
             _, predict = torch.max(outputs.data, 1)
             pred = tr.squeeze(predict).float()
@@ -1661,30 +1856,348 @@ def TTA_CoTTA(loader, model, args, balanced=True, flag=True, fc=None):
             else:
                 results.append(0)
 
-            model.eval()
-
-        start_time = time.time()
-
-        #if (i + 1) % args.test_batch == 0:  # accumulative
-
         model.train()
+        if (i + 1) >= args.test_batch:
+            if args.align:
+                if 'ShallowFBCSPNet' in args.backbone:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, inputs.shape[1], inputs.shape[2], 1)
+                else:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
+            start_time = time.time()
 
+            if args.data_env != 'local':
+                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            else:
+                inputs = torch.from_numpy(inputs).to(torch.float32)
 
-        TTA_time = time.time()
-        #print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
+            feats, outputs = model(inputs)
+            optimizer.zero_grad()
+            outputs = outputs.float().cpu()
+            args.t = 2  # temperature rescaling
+            probas = nn.Softmax(dim=1)(outputs)
+            print(probas)
+
+            # --- Get unary and terms and kernel ---
+            unary = - torch.log(probas + 1e-10)  # [N, K]
+            print(unary)
+            # feats = self.model.backbone.out   # [N, d]
+            feats = torch.nn.functional.normalize(feats, p=2, dim=-1)  # [N, d]
+            # kernel = self.affinity(feats)  # [N, N]
+
+            # linear affinity
+            kernel = torch.matmul(feats, feats.t())
+            '''
+            # rbf affinity
+            def rbf_affinity(X, k=5):
+                N = X.size(0)
+                dist = torch.norm(X.unsqueeze(0) - X.unsqueeze(1), dim=-1, p=2)  # [N, N]
+                n_neighbors = min(k, N)
+                kth_dist = dist.topk(k=n_neighbors, dim=-1, largest=False).values[:,
+                           -1]  # compute k^th distance for each point, [N, knn + 1]
+                sigma = kth_dist.mean()
+                rbf = torch.exp(- dist ** 2 / (2 * sigma ** 2))
+                # mask = torch.eye(X.size(0)).to(X.device)
+                # rbf = rbf * (1 - mask)
+                return rbf
+            kernel = rbf_affinity(feats)
+            '''
+            # if self.force_symmetry:
+            #    kernel = 1/2 * (kernel + kernel.t())
+            '''
+            _C.ADAPTATION.PL_THRESHOLD = 0.9
+            _C.ADAPTATION.LAME_KNN = 5
+            _C.ADAPTATION.LAME_SIGMA = 1.0
+            _C.ADAPTATION.LAME_AFFINITY = 'rbf'
+            _C.ADAPTATION.LAME_FORCE_SYMMETRY = False
+            '''
+
+            def entropy_energy(Y, unary, pairwise, bound_lambda):
+                E = (unary * Y - bound_lambda * pairwise * Y + Y * torch.log(Y.clip(1e-20))).sum()
+                return E
+
+            def laplacian_optimization(unary, kernel, bound_lambda=1, max_steps=100):
+
+                E_list = []
+                oldE = float('inf')
+                Y = (-unary).softmax(-1)  # [N, K]
+                for i in range(max_steps):
+                    pairwise = bound_lambda * kernel.matmul(Y)  # [N, K]
+                    exponent = -unary + pairwise
+                    Y = exponent.softmax(-1)
+                    E = entropy_energy(Y, unary, pairwise, bound_lambda).item()
+                    E_list.append(E)
+
+                    if (i > 1 and (abs(E - oldE) <= 1e-8 * abs(oldE))):
+                        print('ERROR laplacian_optimization')
+                        sys.exit(0)
+                    else:
+                        oldE = E
+
+                return Y
+
+            # --- Perform optim ---
+            Y = laplacian_optimization(unary, kernel)
+
+            model.eval()
 
     if balanced:
         score = accuracy_score(y_true, y_pred)
     else:
         score = balanced_accuracy_score(y_true, y_pred)
 
-    #print(results)
-    #print(ents)
+    return score * 100, y_pred
+
+
+def TTA_CoTTA(loader, model, args, balanced=True, flag=True, fc=None):
+    # https://github.com/qinenergy/cotta
+    y_true = []
+    y_pred = []
+    results = []
+    ents = []
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    iter_test = iter(loader)
+    for i in range(len(loader)):
+
+        model.eval()
+        data = next(iter_test)
+        inputs = data[0]
+        labels = data[1]
+        if i == 0:
+            data_cum = inputs.float().cpu()
+            labels_cum = labels.float().cpu()
+            continue
+        else:
+            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
+            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
+
+        start_time = time.time()
+        if args.align:
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
+            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+
+        EA_time = time.time()
+        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
+
+        model.eval()
+
+        inputs = torch.from_numpy(inputs).to(torch.float32)
+        if args.data_env != 'local':
+            inputs = inputs.cuda()
+        _, outputs = model(inputs)
+
+        labels = labels.float().cpu()
+        _, predict = torch.max(outputs.data, 1)
+
+        pred = tr.squeeze(predict).float()
+
+        y_pred.append(pred.item())
+        y_true.append(labels.item())
+
+        if pred.item() == labels.item():
+            results.append(1)
+        else:
+            results.append(0)
+
+        model.eval()
+
+        # handle very first test sample, postponed due to EA
+        if i == 1:
+            model.eval()
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
+            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+
+            model.eval()
+
+            inputs = torch.from_numpy(inputs).to(torch.float32)
+            if args.data_env != 'local':
+                inputs = inputs.cuda()
+            _, outputs = model(inputs)
+
+            _, predict = torch.max(outputs.data, 1)
+            pred = tr.squeeze(predict).float()
+
+            y_pred.append(pred.item())
+            y_true.append(labels.item())
+            if pred.item() == labels.item():
+                results.append(1)
+            else:
+                results.append(0)
+
+        model.train()
+        if (i + 1) >= args.test_batch:
+            if args.align:
+                if 'ShallowFBCSPNet' in args.backbone:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, inputs.shape[1], inputs.shape[2], 1)
+                else:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
+            start_time = time.time()
+
+            if args.data_env != 'local':
+                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            else:
+                inputs = torch.from_numpy(inputs).to(torch.float32)
+
+            continual_tta = CoTTA(model, optimizer, args.steps)
+            continual_tta(inputs)
+
+            model.eval()
+
+    if balanced:
+        score = accuracy_score(y_true, y_pred)
+    else:
+        score = balanced_accuracy_score(y_true, y_pred)
 
     return score * 100, y_pred
 
 
 def TTA_SAR(loader, model, args, balanced=True, flag=True, fc=None):
+    # SAM from https://github.com/davda54/sam
+    y_true = []
+    y_pred = []
+    results = []
+
+    base_optimizer = torch.optim.Adam  # define an optimizer for the "sharpness-aware" update
+    optimizer = SAM(model.parameters(), base_optimizer, lr=args.lr)
+
+    iter_test = iter(loader)
+    for i in range(len(loader)):
+
+        model.eval()
+        data = next(iter_test)
+        inputs = data[0]
+        labels = data[1]
+        if i == 0:
+            data_cum = inputs.float().cpu()
+            labels_cum = labels.float().cpu()
+            continue
+        else:
+            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
+            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
+
+        if args.align:
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
+            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+
+        inputs = torch.from_numpy(inputs).to(torch.float32)
+        if args.data_env != 'local':
+            inputs = inputs.cuda()
+
+        model.eval()
+
+        _, outputs = model(inputs)
+
+        softmax_out = nn.Softmax(dim=1)(outputs)
+
+        outputs = outputs.float().cpu()
+        labels = labels.float().cpu()
+        _, predict = tr.max(outputs, 1)
+        pred = tr.squeeze(predict).float()
+
+        if balanced:
+            y_pred.append(softmax_out.detach().numpy())
+            y_true.append(labels.item())
+        else:
+            y_pred.append(softmax_out.detach().numpy())
+            y_true.append(labels.item())
+
+        if pred.item() == labels.item():
+            results.append(1)
+        else:
+            results.append(0)
+
+        model.eval()
+
+        # handle very first test sample, postponed due to EA
+        if i == 1:
+            model.train()
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
+            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+
+            inputs = torch.from_numpy(inputs).to(torch.float32)
+            if args.data_env != 'local':
+                inputs = inputs.cuda()
+            _, outputs = model(inputs)
+
+            softmax_out = nn.Softmax(dim=1)(outputs)
+
+            outputs = outputs.float().cpu()
+            labels = labels.float().cpu()
+            _, predict = tr.max(outputs, 1)
+            pred = tr.squeeze(predict).float()
+
+            if balanced:
+                y_pred.append(softmax_out.detach().numpy())
+                y_true.append(labels.item())
+            else:
+                y_pred.append(softmax_out.detach().numpy())
+                y_true.append(labels.item())
+
+            if pred.item() == labels.item():
+                results.append(1)
+            else:
+                results.append(0)
+            model.eval()
+
+        model.train()
+        if (i + 1) >= args.test_batch:
+            if args.align:
+                if 'ShallowFBCSPNet' in args.backbone:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, inputs.shape[1], inputs.shape[2], 1)
+                else:
+                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                             i - args.test_batch + 1:i + 1]
+                    inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
+
+            if args.data_env != 'local':
+                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            else:
+                inputs = torch.from_numpy(inputs).to(torch.float32)
+
+            for step in range(args.steps):
+                optimizer.zero_grad()
+
+                args.t = 2  # temperature rescaling
+
+                # first forward-backward pass
+                loss = tr.mean(Entropy(nn.Softmax(dim=1)(
+                    model(inputs)[1].float().cpu() / args.t)))  # use this loss for any training statistics
+                loss.backward()
+                optimizer.first_step(zero_grad=True)
+
+                # second forward-backward pass
+                tr.mean(Entropy(nn.Softmax(dim=1)(
+                    model(inputs)[1].float().cpu() / args.t))).backward()  # make sure to do a full forward pass
+                optimizer.second_step(zero_grad=True)
+
+            model.eval()
+
+    if balanced:
+        _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
+        pred = tr.squeeze(predict).float()
+        score = accuracy_score(y_true, pred)
+        y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]
+    else:
+        y_pred = np.concatenate(y_pred)[:, 1]
+        score = roc_auc_score(y_true, y_pred)
+
+    return score * 100, y_pred
+
+
+"""
+def TTA_SAR(loader, model, args, balanced=True, flag=True, fc=None):
+    # SAR from https://github.com/mr-eggplant/SAR
     y_true = []
     y_pred = []
     results = []
@@ -1783,6 +2296,7 @@ def TTA_SAR(loader, model, args, balanced=True, flag=True, fc=None):
     #print(ents)
 
     return score * 100
+"""
 
 
 def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
@@ -1792,12 +2306,12 @@ def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
     ents = []
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     iter_test = iter(loader)
     for i in range(len(loader)):
 
-        #print('sample ', str(i), ', input')
+        # print('sample ', str(i), ', input')
 
         model.eval()
         data = next(iter_test)
@@ -1817,7 +2331,7 @@ def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
         EA_time = time.time()
-        #print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
+        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
 
         inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
         if flag:
@@ -1872,28 +2386,28 @@ def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
 
         start_time = time.time()
 
-        #if (i + 1) % args.test_batch == 0:  # accumulative
+        # if (i + 1) % args.test_batch == 0:  # accumulative
 
         model.train()
 
         if (i + 1) >= args.test_batch:  # sliding
 
+            # inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[-1]
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                     i - args.test_batch + 1:i + 1]
 
-            #inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[-1]
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
-
-            #inputs = inputs.reshape(1, 1, inputs.shape[1], inputs.shape[2])
+            # inputs = inputs.reshape(1, 1, inputs.shape[1], inputs.shape[2])
             inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
 
-        #else:
-        #    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))
-        #    inputs = inputs.reshape(-1, 1, inputs.shape[1], inputs.shape[2])
+            # else:
+            #    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))
+            #    inputs = inputs.reshape(-1, 1, inputs.shape[1], inputs.shape[2])
 
             inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
 
-            #noise = np.random.normal(0., 0.01, (inputs.shape[2], inputs.shape[3]))
+            # noise = np.random.normal(0., 0.01, (inputs.shape[2], inputs.shape[3]))
 
-            #noised_inputs = inputs + torch.from_numpy(noise).to(torch.float32).cuda()
+            # noised_inputs = inputs + torch.from_numpy(noise).to(torch.float32).cuda()
 
             for step in range(args.steps):
 
@@ -1930,7 +2444,7 @@ def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
                 '''
                 # IM
                 args.t = 2  # temperature rescaling
-                #args.t = 2 - i / 200  # adaptive temperature rescaling
+                # args.t = 2 - i / 200  # adaptive temperature rescaling
                 args.epsilon = 1e-5
                 softmax_out = nn.Softmax(dim=1)(outputs / args.t)
                 entropy_loss = torch.mean(Entropy(softmax_out))
@@ -1973,23 +2487,22 @@ def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
                 diff_loss = torch.abs(noised_entropy_loss - entropy_loss)
                 '''
 
-                #reg = torch.abs(entropy_loss - torch.mean(torch.from_numpy(np.array(ents))))
+                # reg = torch.abs(entropy_loss - torch.mean(torch.from_numpy(np.array(ents))))
 
-                #loss = 0.2 * clf_loss + im_loss
-                #loss = im_loss + reg
+                # loss = 0.2 * clf_loss + im_loss
+                # loss = im_loss + reg
                 loss = entropy_loss + gentropy_loss
 
-                #print('loss', loss, entropy_loss, gentropy_loss)
-                #loss = mcc_loss + im_loss
+                # print('loss', loss, entropy_loss, gentropy_loss)
+                # loss = mcc_loss + im_loss
 
                 loss.backward()
                 optimizer.step()
 
             model.eval()
 
-
         TTA_time = time.time()
-        #print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
+        # print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
 
         '''
         # entropy calculation
@@ -2021,8 +2534,8 @@ def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
     else:
         score = balanced_accuracy_score(y_true, y_pred)
 
-    #print(results)
-    #print(ents)
+    # print(results)
+    # print(ents)
 
     return score * 100, y_pred
 
@@ -2030,7 +2543,7 @@ def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
 def convert_label(labels, axis, threshold):
     # Converting labels to 0 or 1, based on a certain threshold
     label_01 = np.where(labels > threshold, 1, 0)
-    #print(label_01)
+    # print(label_01)
     return label_01
 
 
@@ -2039,9 +2552,9 @@ def SML(softmax_out):
     soft = softmax_out[:, :, 1].to(torch.float32)
     soft = soft.T.detach()
     out = torch.mm(soft, soft.T)
-    #hard = torch.max(softmax_out, dim=-1)[1].to(torch.float32)
-    #hard = hard.T
-    #out = torch.mm(hard, hard.T)
+    # hard = torch.max(softmax_out, dim=-1)[1].to(torch.float32)
+    # hard = hard.T
+    # out = torch.mm(hard, hard.T)
     '''
     listSVD = np.linalg.svd(out)
     u, s, v = listSVD
@@ -2051,7 +2564,7 @@ def SML(softmax_out):
     accuracies = v[:, 0]
     total = np.sum(accuracies)
     weights = accuracies / total
-    #prediction = np.dot(weights, hard)
+    # prediction = np.dot(weights, hard)
     prediction = np.dot(weights, soft.numpy())
 
     pred = convert_label(prediction, 0, 0.5)
@@ -2078,7 +2591,7 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
     iter_test = iter(loader)
     for i in range(len(loader)):
 
-        #print('sample ', str(i), ', input')
+        # print('sample ', str(i), ', input')
 
         for s in range(len(models)):
             models[s].eval()
@@ -2099,7 +2612,7 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
         EA_time = time.time()
-        #print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
+        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
 
         inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
 
@@ -2117,19 +2630,19 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
             _, pred = tr.max(softmax, 1)
 
             softmax_out.append(softmax)
-        #print(torch.stack(softmax_out).reshape(len(models), -1).shape)
+        # print(torch.stack(softmax_out).reshape(len(models), -1).shape)
         all_softmaxs.append(torch.stack(softmax_out).reshape(len(models), -1))
-        #print(all_softmaxs)
+        # print(all_softmaxs)
 
         softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(1, args.class_num)
-        #print(softmax_out.shape)
-        #ent = Entropy(softmax_out)
-        #ents.append(np.round(ent.item(), 4))
+        # print(softmax_out.shape)
+        # ent = Entropy(softmax_out)
+        # ents.append(np.round(ent.item(), 4))
 
-        #outputs = outputs.float().cpu()
-        #labels = labels.float().cpu()
-        #_, predict = tr.max(outputs, 1)
-        #pred = tr.squeeze(predict).float()
+        # outputs = outputs.float().cpu()
+        # labels = labels.float().cpu()
+        # _, predict = tr.max(outputs, 1)
+        # pred = tr.squeeze(predict).float()
         _, pred = tr.max(softmax_out, 1)
 
         '''
@@ -2171,9 +2684,9 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
                 softmax_out.append(softmax)
             softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(-1, args.class_num)
 
-            #outputs = outputs.float().cpu()
-            #_, predict = tr.max(outputs, 1)
-            #pred = tr.squeeze(predict).float()
+            # outputs = outputs.float().cpu()
+            # _, predict = tr.max(outputs, 1)
+            # pred = tr.squeeze(predict).float()
             pred = tr.max(softmax_out, 1)[1].float()
 
             sml_pred.append(pred.item())
@@ -2187,13 +2700,14 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
 
         start_time = time.time()
 
-        #if (i + 1) % args.test_batch == 0:  # accumulative
+        # if (i + 1) % args.test_batch == 0:  # accumulative
         if (i + 1) >= args.test_batch:  # sliding
 
             for s in range(len(models)):
                 models[s].train()
 
-                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
+                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                         i - args.test_batch + 1:i + 1]
                 inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
 
                 inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -2209,10 +2723,10 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
                             outputs, _ = models[s](inputs)  # modified
                         else:
                             outputs = models[s](inputs)
-                        #outputs = outputs / args.t
-                        #softmax = nn.Softmax(dim=1)(outputs)
-                        #softmax_out.append(softmax)
-                    #softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(-1, args.class_num)
+                        # outputs = outputs / args.t
+                        # softmax = nn.Softmax(dim=1)(outputs)
+                        # softmax_out.append(softmax)
+                    # softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(-1, args.class_num)
 
                     optimizers[s].zero_grad()
 
@@ -2244,21 +2758,21 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
                     msoftmax = softmax_out.mean(dim=0)
                     gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
                     im_loss = entropy_loss + gentropy_loss
-                    #loss = 0.2 * clf_loss + im_loss
+                    # loss = 0.2 * clf_loss + im_loss
                     loss = im_loss
 
-                    #print('loss', loss, entropy_loss, gentropy_loss)
-                    #loss = mcc_loss + im_loss
+                    # print('loss', loss, entropy_loss, gentropy_loss)
+                    # loss = mcc_loss + im_loss
 
                     loss.backward()
-                    #for s in range(len(models)):
+                    # for s in range(len(models)):
                     optimizers[s].step()
 
             for s in range(len(models)):
                 models[s].eval()
 
         TTA_time = time.time()
-        #print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
+        # print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
 
         '''
         # entropy calculation
@@ -2287,18 +2801,18 @@ def TTA_ensemble(loader, models, args, balanced=True, flag=True, fc=None):
 
     if balanced:
         score = accuracy_score(y_true, y_pred)
-        #score_sml = accuracy_score(y_true, sml_pred)
+        # score_sml = accuracy_score(y_true, sml_pred)
     else:
         score = balanced_accuracy_score(y_true, y_pred)
-        #score_sml = balanced_accuracy_score(y_true, sml_pred)
+        # score_sml = balanced_accuracy_score(y_true, sml_pred)
 
-    #print(results)
-    #print(ents)
+    # print(results)
+    # print(ents)
 
-    #print(score * 100)
+    # print(score * 100)
 
     return score * 100
-    #return score_sml * 100
+    # return score_sml * 100
 
 
 def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
@@ -2307,7 +2821,6 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
 
     y_true_single = []
     y_pred_single = []
-
 
     results = []
     ents = []
@@ -2322,7 +2835,7 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
     iter_test = iter(loader)
     for i in range(len(loader)):
 
-        #print('sample ', str(i), ', input')
+        # print('sample ', str(i), ', input')
 
         for s in range(len(models)):
             models[s].eval()
@@ -2343,7 +2856,7 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
         EA_time = time.time()
-        #print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
+        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
 
         inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
 
@@ -2363,20 +2876,20 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
             y_true_single.append(labels.item())
 
             softmax_out.append(softmax)
-        #print(torch.stack(softmax_out).reshape(len(models), -1).shape)
-        #all_softmaxs.append(torch.max(torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(1, args.class_num), 1)[1])
-        #if i > 2:
+        # print(torch.stack(softmax_out).reshape(len(models), -1).shape)
+        # all_softmaxs.append(torch.max(torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(1, args.class_num), 1)[1])
+        # if i > 2:
         #    sml_pred = SML(all_softmaxs)
 
         softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(1, args.class_num)
-        #print(softmax_out.shape)
-        #ent = Entropy(softmax_out)
-        #ents.append(np.round(ent.item(), 4))
+        # print(softmax_out.shape)
+        # ent = Entropy(softmax_out)
+        # ents.append(np.round(ent.item(), 4))
 
-        #outputs = outputs.float().cpu()
-        #labels = labels.float().cpu()
-        #_, predict = tr.max(outputs, 1)
-        #pred = tr.squeeze(predict).float()
+        # outputs = outputs.float().cpu()
+        # labels = labels.float().cpu()
+        # _, predict = tr.max(outputs, 1)
+        # pred = tr.squeeze(predict).float()
         _, pred = tr.max(softmax_out, 1)
 
         y_pred.append(pred.item())
@@ -2412,9 +2925,9 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
                 softmax_out.append(softmax)
             softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(-1, args.class_num)
 
-            #outputs = outputs.float().cpu()
-            #_, predict = tr.max(outputs, 1)
-            #pred = tr.squeeze(predict).float()
+            # outputs = outputs.float().cpu()
+            # _, predict = tr.max(outputs, 1)
+            # pred = tr.squeeze(predict).float()
             pred = tr.max(softmax_out, 1)[1].float()
 
             y_pred.append(pred.item())
@@ -2426,16 +2939,17 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
 
         start_time = time.time()
 
-        #if (i + 1) % args.test_batch == 0:  # accumulative
+        # if (i + 1) % args.test_batch == 0:  # accumulative
         if (i + 1) >= args.test_batch:  # sliding
 
-            softmax_outs =[]
+            softmax_outs = []
             losses = []
 
             for s in range(len(models)):
                 models[s].train()
 
-                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
+                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                         i - args.test_batch + 1:i + 1]
                 inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
 
                 inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -2451,10 +2965,10 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
                             outputs, _ = models[s](inputs)  # modified
                         else:
                             outputs = models[s](inputs)
-                        #outputs = outputs / args.t
-                        #softmax = nn.Softmax(dim=1)(outputs)
-                        #softmax_out.append(softmax)
-                    #softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(-1, args.class_num)
+                        # outputs = outputs / args.t
+                        # softmax = nn.Softmax(dim=1)(outputs)
+                        # softmax_out.append(softmax)
+                    # softmax_out = torch.mean(torch.stack(softmax_out).reshape(len(models), -1), 0).reshape(-1, args.class_num)
 
                     optimizers[s].zero_grad()
 
@@ -2489,28 +3003,28 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
                     msoftmax = softmax_out.mean(dim=0)
                     gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
                     im_loss = entropy_loss + gentropy_loss
-                    #loss = 0.2 * clf_loss + im_loss
+                    # loss = 0.2 * clf_loss + im_loss
                     loss = im_loss
 
-                    #print('loss', loss, entropy_loss, gentropy_loss)
-                    #loss = mcc_loss + im_loss
+                    # print('loss', loss, entropy_loss, gentropy_loss)
+                    # loss = mcc_loss + im_loss
 
                     losses.append(loss)
-            #print('softmax_outs', torch.stack(softmax_outs))
+            # print('softmax_outs', torch.stack(softmax_outs))
             softmax_avg = torch.mean(torch.stack(softmax_outs), dim=0)
-            #print('softmax_avg: ', softmax_avg)
+            # print('softmax_avg: ', softmax_avg)
 
             for s in range(len(models)):
                 softmax_out = softmax_outs[s]
-                #kl = scipy.stats.entropy(softmax_avg.detach().numpy(), softmax_out.detach().numpy())
-                #print(kl)
+                # kl = scipy.stats.entropy(softmax_avg.detach().numpy(), softmax_out.detach().numpy())
+                # print(kl)
                 kl = np.mean(scipy.stats.entropy(softmax_avg.detach().numpy(), softmax_out.detach().numpy()))
                 kl_loss = torch.from_numpy(np.array(kl))
                 kl_loss.requires_grad = True
-                #print(losses[s], torch.from_numpy(np.array(kl_loss)))
+                # print(losses[s], torch.from_numpy(np.array(kl_loss)))
                 loss_final = losses[s] + kl_loss
-                #print('KL divergence:', kl_loss, ', loss', losses[s], ', final loss:', loss_final)
-                #input('')
+                # print('KL divergence:', kl_loss, ', loss', losses[s], ', final loss:', loss_final)
+                # input('')
 
                 loss_final.backward()
                 optimizers[s].step()
@@ -2518,9 +3032,8 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
             for s in range(len(models)):
                 models[s].eval()
 
-
         TTA_time = time.time()
-        #print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
+        # print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
 
         '''
         # entropy calculation
@@ -2554,8 +3067,8 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
         score = balanced_accuracy_score(y_true, y_pred)
         score_single = balanced_accuracy_score(y_true_single, y_pred_single)
 
-    #print(results)
-    #print(ents)
+    # print(results)
+    # print(ents)
 
     print(score_single * 100)
 
@@ -2622,7 +3135,8 @@ def cal_acc_online_testPL(loader, model, args, balanced=True, flag=True, fc=None
         if (i + 1) % args.test_batch == 0:
             model.train()
 
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i-args.test_batch+1:i+1]
+            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
+                     i - args.test_batch + 1:i + 1]
             inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
 
             inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -2714,8 +3228,8 @@ def cal_auc_comb(loader, model, flag=True, fc=None):
                 all_output = tr.cat((all_output, outputs.float().cpu()), 0)
                 all_label = tr.cat((all_label, labels.float()), 0)
     all_output = nn.Softmax(dim=1)(all_output)
-    #_, predict = tr.max(all_output, 1)
-    #pred = tr.squeeze(predict).float()
+    # _, predict = tr.max(all_output, 1)
+    # pred = tr.squeeze(predict).float()
     true = all_label.cpu()
     pred = all_output[:, 1].detach().numpy()
     auc = roc_auc_score(true, pred)
@@ -2748,7 +3262,7 @@ def cal_metrics_ms(loader, netF, netCs, N, class_out, metrics):
 
                 for i in range(x.shape[0]):
                     votes[i, predicted[i]] += 1
-            #_, predicted = torch.max(votes, 1)  # VOTING
+            # _, predicted = torch.max(votes, 1)  # VOTING
             _, predicted = torch.max(all_probs, 1)  # PROBABILITY average
             y_true.append(y.cpu())
             y_pred.append(predicted.cpu())
@@ -2777,7 +3291,7 @@ def cal_acc_msmm(loader, netF, all_centers, metrics):
             inputs = inputs.cuda()
             outputs_feature = netF(inputs)
             outputs = pairwise_distances_logits(outputs_feature,
-                                               all_centers)
+                                                all_centers)
             if start_test:
                 all_output = outputs.float().cpu()
                 all_label = labels.float()
@@ -2787,8 +3301,6 @@ def cal_acc_msmm(loader, netF, all_centers, metrics):
                 all_output = tr.cat((all_output, outputs.float().cpu()), 0)
                 all_label = tr.cat((all_label, labels.float()), 0)
                 all_outputs_feature = tr.cat((all_outputs_feature, outputs_feature), 0)
-
-
 
     all_output = nn.Softmax(dim=1)(all_output)
 
@@ -2962,7 +3474,8 @@ def data_alignment(X, num_subjects, args):
     :return: np array, aligned EEG data
     '''
     # subject-wise EA
-    if args.data == 'BNCI2015003' and len(X) < 141:  # check is dataset BNCI2015003 and is downsampled and is not testset
+    if args.data == 'BNCI2015003' and len(
+            X) < 141:  # check is dataset BNCI2015003 and is downsampled and is not testset
         # upsampling for unequal distributions across subjects, i.e., each subject is upsampled to different num of trials
         print('before EA:', X.shape)
         out = []
@@ -3005,91 +3518,19 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
         Xt_copy = Xt
         Xt = data_alignment(Xt, 1, args)
 
-    #if Xs != None:
-    # 随机打乱会导致训练结果偏高，不影响测试
     src_idx = np.arange(len(Ys))
-    """
-    if args.validation == 'random':  # for SEED
-        num_train = int(0.9 * len(src_idx))
-        tr.manual_seed(args.SEED)
-        id_train, id_val = tr.utils.data.random_split(src_idx, [num_train, len(src_idx) - num_train])
-    if args.validation == 'last':
-        if args.paradigm == 'MI':  # for MI
-            num_all = args.trial_num
-            num_train = int(0.9 * num_all)
-            id_train = np.array(src_idx).reshape(-1, num_all)[:, :num_train].reshape(1, -1).flatten()
-            id_val = np.array(src_idx).reshape(-1, num_all)[:, num_train:].reshape(1, -1).flatten()
-
-        elif args.paradigm == 'ERP':  # for ERP
-            '''
-            id_train = []
-            id_val = []
-            for i in range(args.N - 1):
-                subj_Ys = Ys[args.trial_num * i: args.trial_num * (i+1)]
-                indices_sorted = np.argsort(subj_Ys)
-                ar_unique, cnts_class = np.unique(subj_Ys, return_counts=True)
-                inds_train = np.concatenate((indices_sorted[:int(cnts_class[0] * 0.9)], indices_sorted[:int(cnts_class[1] * 0.9)]))
-                inds_val = np.concatenate((indices_sorted[int(cnts_class[0] * 0.9):], indices_sorted[int(cnts_class[1] * 0.9):]))
-                id_train.append(inds_train + args.trial_num * i)
-                id_val.append(inds_val + args.trial_num * i)
-            id_train = np.concatenate(id_train).reshape(1, -1).flatten()
-            id_val = np.concatenate(id_val).reshape(1, -1).flatten()
-            '''
-            if args.data == 'BNCI2015003' and len(Xs) < 25200:
-                inds = [140, 140, 140, 140, 640, 840, 840, 840, 840, 840]
-                inds = np.delete(inds, args.idt)
-                id_train, id_val = [], []
-                for i in range(args.N - 1):
-                    num_all = inds[i]
-                    num_train = int(0.9 * num_all)
-                    before_inds = int(np.sum(inds[:i]))
-                    id_t = (np.arange(num_train, dtype=int) + before_inds)
-                    id_v = (np.arange(num_all - num_train, dtype=int) + before_inds + num_train)
-                    id_train.append(id_t)
-                    id_val.append(id_v)
-                id_train = np.concatenate(id_train).reshape(1, -1).flatten()
-                id_val = np.concatenate(id_val).reshape(1, -1).flatten()
-            elif args.data == 'BNCI2015003' and len(Xs) > 25200:
-                inds = [4900, 4900, 4900, 4900, 4400, 4200, 4200, 4200, 4200, 4200]
-                inds = np.delete(inds, args.idt)
-                id_train, id_val = [], []
-                for i in range(args.N - 1):
-                    num_all = inds[i]
-                    num_train = int(0.9 * num_all)
-                    before_inds = int(np.sum(inds[:i]))
-                    id_t = (np.arange(num_train, dtype=int) + before_inds)
-                    id_v = (np.arange(num_all - num_train, dtype=int) + before_inds + num_train)
-                    id_train.append(id_t)
-                    id_val.append(id_v)
-                id_train = np.concatenate(id_train).reshape(1, -1).flatten()
-                id_val = np.concatenate(id_val).reshape(1, -1).flatten()
-            else:
-                num_all = args.trial_num
-                num_train = int(0.9 * num_all)
-                id_train = np.array(src_idx).reshape(-1, num_all)[:, :num_train].reshape(1, -1).flatten()
-                id_val = np.array(src_idx).reshape(-1, num_all)[:, num_train:].reshape(1, -1).flatten()
-
-            #ar_unique, class_counts = np.unique(Ys, return_counts=True)
-            #num_samples = sum(class_counts)
-            #labels = Ys  # corresponding labels of samples
-
-            # assuming all subjects have equal number of trials and equal ratio of samples by classes
-            #class_weights = [num_samples / class_counts[i] for i in range(len(class_counts))]
-            #weights = [class_weights[labels[i]] for i in range(int(num_samples))]
-            #sampler_train = Data.WeightedRandomSampler(torch.DoubleTensor(weights), int(num_samples * (args.N - 1)), replacement=True)
-    """
     if args.validation == 'None':
         num_all = args.trial_num
         id_train = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
         id_val = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
     valid_Xs, valid_Ys = tr.from_numpy(Xs[id_val, :]).to(
-        tr.float32), tr.from_numpy(Ys[id_val].reshape(-1,)).to(tr.long)
+        tr.float32), tr.from_numpy(Ys[id_val].reshape(-1, )).to(tr.long)
     valid_Xs = valid_Xs.unsqueeze_(3)
     if 'EEGNet' in args.backbone:
         valid_Xs = valid_Xs.permute(0, 3, 1, 2)
 
     train_Xs, train_Ys = tr.from_numpy(Xs[id_train, :]).to(
-        tr.float32), tr.from_numpy(Ys[id_train].reshape(-1,)).to(tr.long)
+        tr.float32), tr.from_numpy(Ys[id_train].reshape(-1, )).to(tr.long)
     train_Xs = train_Xs.unsqueeze_(3).permute(0, 3, 1, 2)
     if 'EEGNet' in args.backbone:
         train_Xs = train_Xs.permute(0, 3, 1, 2)
@@ -3101,7 +3542,7 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
         Xs = Xs.permute(0, 3, 1, 2)
 
     Xt, Yt = tr.from_numpy(Xt).to(
-        tr.float32), tr.from_numpy(Yt.reshape(-1,)).to(tr.long)
+        tr.float32), tr.from_numpy(Yt.reshape(-1, )).to(tr.long)
     Xt = Xt.unsqueeze_(3)
     if 'EEGNet' in args.backbone:
         Xt = Xt.permute(0, 3, 1, 2)
@@ -3159,16 +3600,19 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     # for online imbalanced dataset
     # test
     class_0_ids = torch.where(Yt == 0)[0][:args.trial_num // 2]
-    class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 4]  # single
-    #class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 8]  # double
+    class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 4]  # single imbalance (train 1:1, test 2:1)
+    # class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 8]  # double imbalance (train 2:1, test 4:1)
     all_ids = torch.cat([class_0_ids, class_1_ids])
+    # print('all_ids test len:', len(all_ids))
     if args.data_env != 'local':
         data_tar_imb = Data.TensorDataset(Xt_copy[all_ids].cuda(), Yt[all_ids].cuda())
     else:
         data_tar_imb = Data.TensorDataset(Xt_copy[all_ids], Yt[all_ids])
-    dset_loaders["Target-Online-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=1, shuffle=True, drop_last=False)
+    dset_loaders["Target-Online-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=1, shuffle=True,
+                                                               drop_last=False)  # shuffle to prevent sequences of same class
     dset_loaders["target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs, shuffle=True, drop_last=True)
-    dset_loaders["Target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs * 3, shuffle=True, drop_last=False)
+    dset_loaders["Target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs * 3, shuffle=True,
+                                                        drop_last=False)
 
     if args.class_num == 2:
         # source
@@ -3180,7 +3624,7 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
         indices = []
         for i in range(args.N - 1):
             indices.append(np.arange(args.trial_num // 2) + ((args.trial_num // 2) * i))  # single
-            #indices.append(np.arange(args.trial_num // 2) + ((args.trial_num // 4) * i))  # double
+            # indices.append(np.arange(args.trial_num // 2) + ((args.trial_num // 4) * i))  # double
         indices = np.concatenate(indices, axis=0)
         class_1_ids = torch.where(Ys == 1)[0][indices]
         all_ids = torch.cat([class_0_ids, class_1_ids])
@@ -3188,7 +3632,8 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
             data_src_imb = Data.TensorDataset(Xs[all_ids].cuda(), Ys[all_ids].cuda())
         else:
             data_src_imb = Data.TensorDataset(Xs[all_ids], Ys[all_ids])
-        dset_loaders["source-Imbalanced"] = Data.DataLoader(data_src_imb, batch_size=train_bs, shuffle=True, drop_last=True)
+        dset_loaders["source-Imbalanced"] = Data.DataLoader(data_src_imb, batch_size=train_bs, shuffle=True,
+                                                            drop_last=True)
 
         # for multi-sources
         loader_arr = []

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2023/01/11
+# @Time    : 2023/04/17
 # @Author  : Siyang Li
-# @File    : dnn.py
+# @File    : sar.py
 import numpy as np
 import argparse
 import os
+import csv
 import torch as tr
 import torch.nn as nn
 import torch.optim as optim
@@ -25,7 +26,8 @@ def train_target(args):
     dset_loaders = data_loader(X_src, y_src, X_tar, y_tar, args)
 
     netF, netC = network.backbone_net(args, return_type='xy')
-    netF, netC = netF.cuda(), netC.cuda()
+    if args.data_env != 'local':
+        netF, netC = netF.cuda(), netC.cuda()
     base_network = nn.Sequential(netF, netC)
 
     if args.max_epoch == 0:
@@ -41,7 +43,8 @@ def train_target(args):
             loss_weights.append(1.0)
             loss_weights.append(cnts_class[0] / cnts_class[1])
             print(loss_weights)
-            loss_weights = torch.Tensor(loss_weights).cuda()
+            if args.data_env != 'local':
+                loss_weights = torch.Tensor(loss_weights).cuda()
             criterion = nn.CrossEntropyLoss(weight=loss_weights)
 
         optimizer_f = optim.Adam(netF.parameters(), lr=args.lr)
@@ -97,22 +100,22 @@ def train_target(args):
 
     base_network.eval()
 
-    '''
+
     if args.paradigm == 'MI':
-        acc_t_te, pred = cal_acc_comb(dset_loaders["Target"], base_network, args)
+        acc_t_te, _ = cal_acc_comb(dset_loaders["Target"], base_network, args)
         log_str = 'Task: {}, Acc = {:.2f}%'.format(args.task_str, acc_t_te)
         args.log.record(log_str)
         print(log_str)
     elif args.paradigm == 'ERP':
-        acc_t_te, pred  = cal_bca_comb(dset_loaders["Target"], base_network)
+        acc_t_te, _ = cal_bca_comb(dset_loaders["Target"], base_network)
         log_str = 'Task: {}, BCA = {:.2f}%'.format(args.task_str, acc_t_te)
         args.log.record(log_str)
         print(log_str)
-    '''
     print('TTA...')
 
     if args.paradigm == 'MI':
         acc_t_te = TTA_SAR(dset_loaders["Target-Online"], base_network, args)
+        #acc_t_te, y_pred = TTA_SAR(dset_loaders["Target-Online-Imbalanced"], base_network, args, balanced=False)
         log_str = 'Task: {}, TTA Acc = {:.2f}%'.format(args.task_str, acc_t_te)
         args.log.record(log_str)
         print(log_str)
@@ -123,7 +126,8 @@ def train_target(args):
         print(log_str)
 
     gc.collect()
-    torch.cuda.empty_cache()
+    if args.data_env != 'local':
+        torch.cuda.empty_cache()
 
     return acc_t_te
 
@@ -160,6 +164,7 @@ if __name__ == '__main__':
 
         args.data = data_name
         args.method = 'SAR'
+        #args.method = 'Imbsingle-SAR'
         args.backbone = 'EEGNet'
         args.feature = False
 

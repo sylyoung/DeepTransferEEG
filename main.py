@@ -389,7 +389,7 @@ def eeg_ml(dataset, info, align, approach, cuda_device_id):
 
         if paradigm == 'MI':
             # CSP
-            csp = CSP(n_components=10)
+            csp = mne.decoding.CSP(n_components=10)
             train_x_csp = csp.fit_transform(train_x, train_y)
             test_x_csp = csp.transform(test_x)
 
@@ -520,11 +520,8 @@ if __name__ == '__main__':
             info = None
 
         for approach in ['LDA']:
-            all_scores = []
             # use EA
             align = True
-
-            pre_model_arch = 'EEGNet'
 
             print(dataset, align, approach)
 
