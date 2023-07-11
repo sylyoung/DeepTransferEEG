@@ -26,17 +26,6 @@ from utils.alg_utils import EA
 from utils.data_utils import traintest_split_cross_subject, dataset_to_file, time_cut
 from models.EEGNet import EEGNet_feature, EEGNet, EEGNetxy
 from models.FC import FC
-from nn_baseline import nn_fixepoch
-
-
-def apply_pca(train_x, test_x, variance_retained):
-    pca = PCA(variance_retained)
-    print('before PCA:', train_x.shape, test_x.shape)
-    train_x = pca.fit_transform(train_x)
-    test_x = pca.transform(test_x)
-    print('after PCA:', train_x.shape, test_x.shape)
-    print('PCA variance retained:', np.sum(pca.explained_variance_ratio_))
-    return train_x, test_x
 
 
 def apply_zscore(train_x, test_x, num_subjects):
@@ -52,54 +41,6 @@ def apply_zscore(train_x, test_x, num_subjects):
     scaler = preprocessing.StandardScaler()
     test_x = scaler.fit_transform(test_x)
     return train_x, test_x
-
-
-def apply_zscore_multisessions(train_x, test_x, num_subjects, session_num):
-    # train split into subjects
-    train_z = []
-    trial_num = int(train_x.shape[0] / (num_subjects - 1) / session_num)
-    for i in range(num_subjects - 1):
-        for j in range(session_num):
-            scaler = preprocessing.StandardScaler()
-            train_x_tmp = scaler.fit_transform(
-                train_x[trial_num * i * session_num + trial_num * j: trial_num * i * session_num + trial_num * (j + 1),
-                :])
-            train_z.append(train_x_tmp)
-    train_x = np.concatenate(train_z, axis=0)
-    # test subject
-    test_z = []
-    for j in range(session_num):
-        scaler = preprocessing.StandardScaler()
-        test_x_tmp = scaler.fit_transform(
-            test_x[trial_num * j: trial_num * (j + 1), :])
-        test_z.append(test_x_tmp)
-    test_x = np.concatenate(test_z, axis=0)
-    return train_x, test_x
-
-
-def apply_smote(train_x, train_y):
-    smote = SMOTE(n_jobs=8)
-    print('before SMOTE:', train_x.shape, train_y.shape)
-    train_x, train_y = smote.fit_resample(train_x, train_y)
-    print('after SMOTE:', train_x.shape, train_y.shape)
-    return train_x, train_y
-
-
-def apply_randup(train_x, train_y):
-    # TODO subject based random upsampling
-    sampler = RandomOverSampler()
-    print('before Random Upsampling:', train_x.shape, train_y.shape)
-    train_x, train_y = sampler.fit_resample(train_x, train_y)
-    print('after Random Upsampling:', train_x.shape, train_y.shape)
-    return train_x, train_y
-
-
-def apply_randdown(train_x, train_y):
-    sampler = RandomUnderSampler()
-    print('before Random Downsampling:', train_x.shape, train_y.shape)
-    train_x, train_y = sampler.fit_resample(train_x, train_y)
-    print('after Random Downsampling:', train_x.shape, train_y.shape)
-    return train_x, train_y
 
 
 def data_loader(dataset):
@@ -176,71 +117,6 @@ def data_loader(dataset):
 
         X = X[indices]
         y = y[indices]
-    elif dataset == 'MI1':
-        paradigm = 'MI'
-        num_subjects = 7
-        sample_rate = 100
-        ch_num = 59
-    elif dataset == 'BNCI2014008':
-        paradigm = 'ERP'
-        num_subjects = 8
-        sample_rate = 256
-        ch_num = 8
-
-        # time cut
-        X = time_cut(X, cut_percentage=0.8)
-    elif dataset == 'BNCI2014009':
-        paradigm = 'ERP'
-        num_subjects = 10
-        sample_rate = 256
-        ch_num = 16
-    elif dataset == 'BNCI2015003':
-        paradigm = 'ERP'
-        num_subjects = 10
-        sample_rate = 256
-        ch_num = 8
-
-    elif dataset == 'PhysionetMI':
-        paradigm = 'MI'
-        num_subjects = 105
-        sample_rate = 160
-        ch_num = 64
-
-        '''
-        run_cnters = []
-        with open('./data/PhysionetMI/meta.csv', 'r') as f:
-            subj_id_memo = -1
-            run_id_memo = -1
-            run_lengths = []
-            run_cnter = 0
-            for line in f:
-                #print(run_lengths, run_cnter)
-                #input('')
-                if 'subject' in line:
-                    continue
-                id_, subj_id, _, run_id = line.replace('\n', '').split(',')
-                id_, subj_id, run_id = int(id_), int(subj_id) - 1, int(run_id[-1:])
-                if subj_id_memo != subj_id:
-                    if run_id_memo != -1:
-                        run_lengths.append(run_cnter)
-                        run_cnters.append(run_lengths)
-                    subj_id_memo = subj_id
-                    run_id_memo = run_id
-                    run_lengths = []
-                    run_cnter = 1
-                elif run_id_memo != run_id:
-                    run_id_memo = run_id
-                    run_lengths.append(run_cnter)
-                    run_cnter = 1
-                else:
-                    run_cnter += 1
-                if id_ == 4767:
-                    run_lengths.append(run_cnter)
-                    run_cnters.append(run_lengths)
-        print(run_cnters)
-        print(len(run_cnters))
-        print(np.sum(run_cnters))
-        '''
 
     le = preprocessing.LabelEncoder()
     y = le.fit_transform(y)
@@ -259,29 +135,6 @@ def data_alignment(X, num_subjects):
     out = []
     for i in range(num_subjects):
         tmp_x = EA(X[X.shape[0] // num_subjects * i:X.shape[0] // num_subjects * (i + 1), :, :])
-        out.append(tmp_x)
-    X = np.concatenate(out, axis=0)
-    print('after EA:', X.shape)
-    return X
-
-
-def data_alignment_two_sessions(X, num_subjects, session_split):
-    '''
-    :param X: np array, EEG data of two sessions
-    :param num_subjects: int, number of total subjects in X
-    :param session_split: float, session split ratio
-    :return: np array, aligned EEG data
-    '''
-    # subject-wise EA
-    print('before EA:', X.shape)
-    out = []
-    for i in range(num_subjects):
-        subj_trial_num = int(X.shape[0] // num_subjects)
-        first_session_num = int(subj_trial_num * session_split)
-        # print(first_session_num, subj_trial_num)
-        tmp_x = EA(X[subj_trial_num * i:subj_trial_num * i + first_session_num, :, :])
-        out.append(tmp_x)
-        tmp_x = EA(X[subj_trial_num * i + first_session_num:subj_trial_num * (i + 1), :, :])
         out.append(tmp_x)
     X = np.concatenate(out, axis=0)
     print('after EA:', X.shape)
@@ -355,22 +208,10 @@ def ml_classifier(approach, output_probability, train_x, train_y, test_x, return
         return pred
 
 
-def sort_func_gen_data(name_string):
-    id_ = -1
-    if name_string.endswith('.npy'):
-        id_ = int(name_string[-7:-4])
-    return id_
-
-
 def eeg_ml(dataset, info, align, approach, cuda_device_id):
     X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(dataset)
-    # X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader_feature(dataset)
     print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
 
-    if paradigm == 'ERP':
-        print('ERP downsampled')
-        X = mne.filter.resample(X, down=4)
-        sample_rate = int(sample_rate // 4)
     print('sample rate:', sample_rate)
 
     unaligned = X
@@ -393,88 +234,10 @@ def eeg_ml(dataset, info, align, approach, cuda_device_id):
             train_x_csp = csp.fit_transform(train_x, train_y)
             test_x_csp = csp.transform(test_x)
 
-            # z-score standardization
-            print('applying z-score train_x:', train_x_csp.shape, ' test_x:', test_x_csp.shape)
-            train_x_csp, test_x_csp = apply_zscore(train_x_csp, test_x_csp, num_subjects)
-            # train_x_csp, test_x_csp = apply_zscore_multisessions(train_x_csp, test_x_csp, num_subjects, 2)
+            # classifier
+            pred, model = ml_classifier(approach, False, train_x_csp, train_y, test_x_csp, return_model=True)
+            score = np.round(accuracy_score(test_y, pred), 5)
 
-            # PCA
-            # train_x_csp, test_x_csp = apply_pca(train_x_csp, test_x_csp, 0.95)
-
-            if approach != 'FC':
-                # classifier
-                pred, model = ml_classifier(approach, False, train_x_csp, train_y, test_x_csp, return_model=True)
-                score = np.round(accuracy_score(test_y, pred), 5)
-            else:
-                # FC model
-                feature_in = train_x_csp.shape[1]
-                class_out = len(np.unique(y))
-                score = nn_fixepoch(model=FC(nn_in=feature_in, nn_out=class_out),
-                                    learning_rate=0.0001,
-                                    num_iterations=100,
-                                    metrics=accuracy_score,
-                                    cuda=False,
-                                    cuda_device_id=cuda_device_id,
-                                    seed=42,
-                                    dataset=dataset,
-                                    model_name='FC',
-                                    test_subj_id=i,
-                                    label_probs=False,
-                                    valid_percentage=0,
-                                    train_x=train_x_csp,
-                                    train_y=train_y,
-                                    test_x=test_x_csp,
-                                    test_y=test_y)
-            print('acc:', score)
-        elif paradigm == 'ERP':
-            # xDAWN
-            xdawn = Xdawn(n_components=X.shape[1])  # number of channels
-            train_x_epochs = mne.EpochsArray(train_x, info)
-            test_x_epochs = mne.EpochsArray(test_x, info)
-            train_x_xdawn = xdawn.fit_transform(train_x_epochs)  # unsupervised
-            test_x_xdawn = xdawn.transform(test_x_epochs)
-            train_x_xdawn = train_x_xdawn.reshape(train_x_xdawn.shape[0], -1)
-            test_x_xdawn = test_x_xdawn.reshape(test_x_xdawn.shape[0], -1)
-            print('Training/Test split after xDAWN:', train_x_xdawn.shape, test_x_xdawn.shape)
-
-            # z-score standardization
-            print('applying z-score train_x:', train_x_xdawn.shape, ' test_x:', test_x_xdawn.shape)
-            train_x_xdawn, test_x_xdawn = apply_zscore(train_x_xdawn, test_x_xdawn, num_subjects)
-
-            # PCA
-            train_x_xdawn, test_x_xdawn = apply_pca(train_x_xdawn, test_x_xdawn, 0.95)
-
-            # Upsampling
-            # train_x_xdawn, train_y = apply_smote(train_x_xdawn, train_y)
-            # train_x_xdawn, train_y = apply_randup(train_x_xdawn, train_y)
-
-            train_x_xdawn_up, train_y_up = apply_randup(train_x_xdawn, train_y)
-
-            if approach != 'FC':
-                # classifier
-                pred = ml_classifier(approach, False, train_x_xdawn_up, train_y_up, test_x_xdawn)
-                score = np.round(balanced_accuracy_score(test_y, pred), 5)
-            else:
-                # FC model
-                feature_in = train_x_xdawn.shape[1]
-                class_out = len(np.unique(y))
-                score = nn_fixepoch(model=FC(nn_in=feature_in, nn_out=class_out),
-                                    learning_rate=0.0001,
-                                    num_iterations=50,
-                                    metrics=balanced_accuracy_score,
-                                    cuda=True,
-                                    cuda_device_id=cuda_device_id,
-                                    seed=42,
-                                    dataset=dataset,
-                                    model_name='FC',
-                                    test_subj_id=i,
-                                    label_probs=False,
-                                    valid_percentage=0,
-                                    train_x=train_x_xdawn,
-                                    train_y=train_y,
-                                    test_x=test_x_xdawn,
-                                    test_y=test_y)
-            print('bca:', score)
         scores_arr.append(score)
     print('#' * 30)
     for i in range(len(scores_arr)):
@@ -508,8 +271,6 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
 
     dataset_arr = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001']
-    # dataset_arr = ['BNCI2014008', 'BNCI2014009', 'BNCI2015003']
-    # dataset_arr = ['PhysionetMI']
 
     for dataset in dataset_arr:
 
