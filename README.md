@@ -28,7 +28,7 @@ For CSP approach, it is not a deep learning approach and is seperated from the o
 
 ## Hyperparameters
 
-Almost all hyperparameters/configurations of approaches/experiments are under the *args* variable under *if __name__ == '__main__':* the "main" function, and naming should be self-explanatory.
+Most hyperparameters/configurations of approaches/experiments are under the *args* variable in the "main" function of each file, and naming should be self-explanatory.
 
 ## Contact
 
