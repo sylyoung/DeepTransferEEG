@@ -3,7 +3,7 @@ import torch
 
 import torch.nn.functional as F
 from scipy.linalg import fractional_matrix_power
-from sklearn import preprocessing
+
 
 def EA(x):
     """
@@ -26,6 +26,29 @@ def EA(x):
     for i in range(x.shape[0]):
         XEA[i] = np.dot(sqrtRefEA, x[i])
     return XEA
+
+
+def EA_online(x, R, sample_num):
+    """
+    Parameters
+    ----------
+    x : numpy array
+        sample of shape (num_channels, num_time_samples)
+    R : numpy array
+        current reference matrix (num_channels, num_channels)
+    sample_num: int
+        previous number of samples used to calculate R
+
+    Returns
+    ----------
+    refEA : numpy array
+        data of shape (num_channels, num_channels)
+    """
+
+    cov = np.cov(x)
+    refEA = (R * sample_num + cov) / (sample_num + 1)
+    return refEA
+
 
 def soft_cross_entropy_loss(input, target):
     logprobs = torch.nn.functional.log_softmax(input, dim=1)
@@ -88,17 +111,16 @@ def cross_entropy_with_probs(
         raise ValueError("Keyword 'reduction' must be one of ['none', 'mean', 'sum']")
 
 
-def apply_zscore(train_x, test_x, num_subjects):
-    # train split into subjects
-    train_z = []
-    trial_num = int(train_x.shape[0] / (num_subjects - 1))
-    for j in range(num_subjects - 1):
-        scaler = preprocessing.StandardScaler()
-        train_x_tmp = scaler.fit_transform(train_x[trial_num * j: trial_num * (j + 1), :])
-        train_z.append(train_x_tmp)
-    train_x = np.concatenate(train_z, axis=0)
-    # test subject
-    scaler = preprocessing.StandardScaler()
-    test_x = scaler.fit_transform(test_x)
-    return train_x, test_x
+def calc_distance_wave(data):
+    """
+    :param data: np array, 1-d array representing a wave
+    :return: int, distance of walking on the wave from start point to the end
+    """
+    total_dist = 0
+    for i in range(len(data) - 1):
+        dist = np.sqrt(1 + np.square(data[i + 1] - data[i]))
+        total_dist += dist
+    return total_dist
+
+
 

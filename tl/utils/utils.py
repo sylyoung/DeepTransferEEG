@@ -20,28 +20,17 @@ import copy
 import time
 import scipy
 from torchsampler import ImbalancedDatasetSampler
-from sklearn.metrics import balanced_accuracy_score, accuracy_score
+from sklearn.metrics import balanced_accuracy_score, accuracy_score, roc_auc_score
 from sklearn.metrics.pairwise import cosine_distances
+from scipy.linalg import fractional_matrix_power
 
-try:
-    from alg_utils import EA
-    from loss import ClassConfusionLoss, Entropy
-    from models.cotta import CoTTA
-    # from models.sar import SAR, SAM
-    from models.sam import SAM
-    # import models.sar as sar
-except:
-    from utils.alg_utils import EA
-    from models.cotta import CoTTA
-    from utils.loss import ClassConfusionLoss, Entropy
-    # from models.sar import SAR, SAM
-    from models.sam import SAM
-    # import models.sar as sar
+from utils.alg_utils import EA, EA_online
+from models.cotta import CoTTA
+from utils.loss import ClassConfusionLoss, Entropy
 
 from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2014008, BNCI2014009, BNCI2015003, BNCI2015004, EPFLP300, \
     BNCI2014004, BNCI2015001
 from moabb.paradigms import MotorImagery, P300
-from sklearn.metrics import roc_auc_score
 
 
 def split_data(data, axis, times):
@@ -165,13 +154,15 @@ def lr_scheduler_full(optimizer, init_lr, iter_num, max_iter, gamma=10, power=0.
     return optimizer
 
 
-def cal_acc(loader, netF, netC):
+def cal_acc(loader, netF, netC, args=None):
     start_test = True
     with tr.no_grad():
         iter_test = iter(loader)
         for i in range(len(loader)):
             data = next(iter_test)
-            inputs = data[0].cuda()
+            inputs = data[0]
+            if args.data_env != 'local':
+                inputs = inputs.cuda()
             labels = data[1].float()
             outputs = netC(netF(inputs))
             if start_test:
@@ -232,23 +223,23 @@ def cal_auc(loader, netF, netC):
                 all_output = tr.cat((all_output, outputs.float().cpu()), 0)
                 all_label = tr.cat((all_label, labels), 0)
     all_output = nn.Softmax(dim=1)(all_output)
-    # _, predict = tr.max(all_output, 1)
-    # pred = tr.squeeze(predict).float()
     true = all_label.cpu()
     pred = all_output[:, 1].detach().numpy()
     auc = roc_auc_score(true, pred)
     return auc * 100, pred
 
 
-def cal_acc_comb(loader, model, flag=True, fc=None):
+def cal_acc_comb(loader, model, flag=True, fc=None, args=None):
     start_test = True
+    model.eval()
     with tr.no_grad():
         iter_test = iter(loader)
         for i in range(len(loader)):
             data = next(iter_test)
             inputs = data[0]
             labels = data[1]
-            # inputs = inputs.cuda()
+            if args.data_env != 'local':
+                inputs = inputs.cuda()
             inputs = inputs
             if flag:
                 _, outputs = model(inputs)
@@ -273,67 +264,7 @@ def cal_acc_comb(loader, model, flag=True, fc=None):
     return acc * 100, pred
 
 
-def cal_acc_online(loader, model, args, balanced=True, flag=True, fc=None):
-    y_true = []
-    y_pred = []
-    with tr.no_grad():
-        iter_test = iter(loader)
-        for i in range(len(loader)):
-            data = next(iter_test)
-            inputs = data[0]
-            labels = data[1]
-            if i == 0:
-                data_cum = inputs.float().cpu()
-                continue
-            else:
-                data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
-
-            if args.align:
-                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
-                inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            if flag:
-                _, outputs = model(inputs)
-            else:
-                if fc is not None:
-                    outputs, _ = model(inputs)  # modified
-                else:
-                    outputs = model(inputs)
-            outputs = outputs.float().cpu()
-            labels = labels.float().cpu()
-            _, predict = tr.max(outputs, 1)
-            pred = tr.squeeze(predict).float()
-            y_pred.append(pred.item())
-            y_true.append(labels.item())
-
-            if i == 1:
-                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
-                inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-                if flag:
-                    _, outputs = model(inputs)
-                else:
-                    if fc is not None:
-                        outputs, _ = model(inputs)  # modified
-                    else:
-                        outputs = model(inputs)
-                outputs = outputs.float().cpu()
-                _, predict = tr.max(outputs, 1)
-                pred = tr.squeeze(predict).float()
-                y_pred.append(pred.item())
-                y_true.append(labels.item())
-
-    if balanced:
-        score = accuracy_score(y_true, y_pred)
-    else:
-        score = balanced_accuracy_score(y_true, y_pred)
-
-    return score * 100
-
-
-def cal_acc_online_testBN(loader, model, args, balanced=True, flag=True, fc=None):
+def BN_adapt(loader, model, args, balanced=True, flag=True, fc=None):
     y_true = []
     y_pred = []
 
@@ -435,13 +366,12 @@ def cal_acc_online_testBN(loader, model, args, balanced=True, flag=True, fc=None
     return score * 100
 
 
-def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
+def Tent(loader, model, args, balanced=True, flag=True, fc=None):
     y_true = []
     y_pred = []
 
     optimizer = torch.optim.Adam(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(
         model[0].block2[3].parameters()), lr=args.lr)
-    # optimizer = torch.optim.SGD(list(model[0].block1[2].parameters()) + list(model[0].block1[4].parameters()) + list(model[0].block2[3].parameters()), lr=args.lr, momentum=0.9)
 
     model[0].block1[2].track_running_stats = False
     model[0].block1[4].running_mean = None
@@ -449,7 +379,6 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
 
     iter_test = iter(loader)
     for i in range(len(loader)):
-        # model.eval()
         model.train()
         data = next(iter_test)
         inputs = data[0]
@@ -466,7 +395,10 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
             inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
-        inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+        if args.data_env != 'local':
+            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+        else:
+            inputs = torch.from_numpy(inputs).to(torch.float32)
         if flag:
             _, outputs = model(inputs)
         else:
@@ -482,10 +414,14 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
         y_true.append(labels.item())
 
         if i == 1:
+            model.train()
             inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
             inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
 
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            if args.data_env != 'local':
+                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            else:
+                inputs = torch.from_numpy(inputs).to(torch.float32)
             if flag:
                 _, outputs = model(inputs)
             else:
@@ -508,7 +444,10 @@ def cal_acc_TENT(loader, model, args, balanced=True, flag=True, fc=None):
                      i - args.test_batch + 1:i + 1]
             inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
 
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            if args.data_env != 'local':
+                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
+            else:
+                inputs = torch.from_numpy(inputs).to(torch.float32)
 
             for step in range(args.steps):
 
@@ -687,14 +626,6 @@ def cal_acc_T3A(loader, model, args, balanced=True, flag=True, fc=None, weights=
     return score * 100
 
 
-def func_right(x):
-    return 36 * (1 / math.e) * pow(x, 2) - 60 * (1 / math.e) * x + 24 * (1 / math.e)
-
-
-def func_left(x):
-    return (36 / 25) * (1 / math.e) * pow(x, 2) - (12 / 5) * (1 / math.e) * x
-
-
 def TTA(loader, model, args, balanced=True, flag=True, fc=None):
     y_true = []
     y_pred = []
@@ -753,6 +684,9 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
             else:
                 inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
                 inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+        else:
+            inputs = data_cum[i].numpy()
+            inputs = inputs.reshape(1, 1, inputs.shape[1], inputs.shape[2])
 
         EA_time = time.time()
         # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
@@ -801,6 +735,9 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 else:
                     inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
                     inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
+            else:
+                inputs = data_cum[0].numpy()
+                inputs = inputs.reshape(1, 1, inputs.shape[1], inputs.shape[2])
 
             if args.data_env != 'local':
                 inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
@@ -832,7 +769,7 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
 
         model.train()
         # if (i + 1) % args.test_batch == 0:  # accumulative
-        if (i + 1) >= args.test_batch and (i + 1) % 2 == 0:  # sliding
+        if (i + 1) >= args.test_batch and (i + 1) % args.stride == 0:  # sliding
             # if False:
             if args.align:
                 if 'ShallowFBCSPNet' in args.backbone:
@@ -843,6 +780,9 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                     inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
                              i - args.test_batch + 1:i + 1]
                     inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
+            else:
+                inputs = data_cum[i - args.test_batch + 1:i + 1, :, :, :].numpy()
+                inputs = inputs.reshape(args.test_batch, 1, inputs.shape[2], inputs.shape[3])
             start_time = time.time()
             """
             #if (i + 1) > args.test_batch:
@@ -1073,7 +1013,6 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 print('after:', msoftmax_weighted)
                 '''
 
-                # T-TIME
                 # Adaptive Marginal Distribution Regularization
                 # Weighting by prior class distribution
                 '''
@@ -1091,15 +1030,21 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 print(class_0_num, class_1_num)
                 '''
 
-                """
+                '''
                 # T-TIME: Adaptive Marginal Label Distribution Entropy Regularization
                 norm_msoftmax = torch.tensor([0., 0.]).to(torch.float32)
 
-                c0 = (len(c0_ids) + 4) / (len(c0_ids) + len(c1_ids) + 4)
-                c1 = (len(c1_ids) + 4) / (len(c0_ids) + len(c1_ids) + 4)
+                # mine
+                #c0 = (len(c0_ids) + 4) / (len(c0_ids) + len(c1_ids) + 4)
+                #c1 = (len(c1_ids) + 4) / (len(c0_ids) + len(c1_ids) + 4)
+                #norm_msoftmax[0] = msoftmax[0] * (1 / c0) * (1 / 2)
+                #norm_msoftmax[1] = msoftmax[1] * (1 / c1) * (1 / 2)
 
-                norm_msoftmax[0] = msoftmax[0] * (1 / c0) * (1 / 2)
-                norm_msoftmax[1] = msoftmax[1] * (1 / c1) * (1 / 2)
+                # Wu
+                #c0 = (len(c0_ids) + 4) / (len(c0_ids) + len(c1_ids) + 4)
+                #c1 = (len(c1_ids) + 4) / (len(c0_ids) + len(c1_ids) + 4)
+                norm_msoftmax[0] = msoftmax[0] / (4 + len(c0_ids))
+                norm_msoftmax[1] = msoftmax[1] / (4 + len(c1_ids))
 
                 sum_msoftmax = torch.sum(norm_msoftmax)
                 normed_msoftmax = torch.tensor([0., 0.]).to(torch.float32)
@@ -1107,17 +1052,17 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 normed_msoftmax[1] = norm_msoftmax[1] / sum_msoftmax
 
                 gentropy_loss = tr.sum(normed_msoftmax * tr.log(normed_msoftmax + args.epsilon))
-                """
-                # args.lambda_ada = 0.9
-                # on prediction probs
-                # if (i + 1) % args.test_batch == 0:
-                # c0 = args.lambda_ada * c0 + msoftmax[0].detach().cpu().numpy() * (1 - args.lambda_ada)
-                # c1 = args.lambda_ada * c1 + msoftmax[1].detach().cpu().numpy() * (1 - args.lambda_ada)
-                # on class dist
-                # c0 = args.lambda_ada * c0 + (class_0_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
-                # c1 = args.lambda_ada * c1 + (class_1_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
-                # print(c0, c1)
 
+                #args.lambda_ada = 0.9
+                # on prediction probs
+                #if (i + 1) % args.test_batch == 0:
+                #c0 = args.lambda_ada * c0 + msoftmax[0].detach().cpu().numpy() * (1 - args.lambda_ada)
+                #c1 = args.lambda_ada * c1 + msoftmax[1].detach().cpu().numpy() * (1 - args.lambda_ada)
+                # on class dist
+                #c0 = args.lambda_ada * c0 + (class_0_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
+                #c1 = args.lambda_ada * c1 + (class_1_num / (class_0_num + class_1_num)) * (1 - args.lambda_ada)
+                #print(c0, c1)
+                '''
                 '''
                 # ISFDA
                 # Intra-class Tightening and Inter-class Separation
@@ -1175,7 +1120,7 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
 
             """
             # T-TIME: Adaptive Marginal Label Distribution Entropy Regularization
-            if i + 1 == args.test_batch:
+            if i + 1 == args.test_batch:  # initialize z
                 args.pred_thresh = 0.7
                 pl = torch.max(softmax_out, 1)[1]
                 for l in range(args.test_batch):
@@ -1200,8 +1145,7 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
                 '''
 
                 #print('start_ratio:', ratio)
-            else:
-                # update confident prediction ids for current test sample
+            else:  # see if confident prediction for current test sample and update z
                 pl = torch.max(softmax_out, 1)[1]
                 if pl[-1] == 0:
                     if softmax_out[-1][0] > args.pred_thresh:
@@ -1296,658 +1240,17 @@ def TTA(loader, model, args, balanced=True, flag=True, fc=None):
         _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
         pred = tr.squeeze(predict).float()
         score = accuracy_score(y_true, pred)
-        # y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]  # binary
-        y_pred = np.array(y_pred).reshape(-1, )  # multiclass
-    else:
-        # y_pred = np.concatenate(y_pred)[:, 1]
-        # score = roc_auc_score(y_true, y_pred)
-        _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
-        pred = tr.squeeze(predict).float()
-        score = balanced_accuracy_score(y_true, pred)
-        y_pred = np.array(y_pred).reshape(-1, )
-
-    return score * 100, y_pred
-
-
-def TTA_vanilla(loader, model, args, balanced=True, flag=True, fc=None):
-    y_true = []
-    y_pred = []
-    results = []
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-
-    iter_test = iter(loader)
-    for i in range(len(loader)):
-
-        model.eval()
-        data = next(iter_test)
-        inputs = data[0]
-        labels = data[1]
-        if i == 0:
-            data_cum = inputs.float().cpu()
-            labels_cum = labels.float().cpu()
-            continue
-        else:
-            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
-            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
-
-        start_time = time.time()
-        if args.align:
-            if 'ShallowFBCSPNet' in args.backbone:
-                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[i]
-                inputs = inputs.reshape(1, inputs.shape[0], inputs.shape[1], 1)
-            else:
-                inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
-                inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-        if args.data_env != 'local':
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-        else:
-            inputs = torch.from_numpy(inputs).to(torch.float32)
-        if flag:
-            _, outputs = model(inputs)
-        else:
-            if fc is not None:
-                outputs, _ = model(inputs)  # modified
-            else:
-                outputs = model(inputs)
-
-        softmax_out = nn.Softmax(dim=1)(outputs)
-
-        outputs = outputs.float().cpu()
-        labels = labels.float().cpu()
-        _, predict = tr.max(outputs, 1)
-        pred = tr.squeeze(predict).float()
-
-        if balanced:
-            y_pred.append(softmax_out.detach().numpy())
-            y_true.append(labels.item())
-        else:
-            y_pred.append(softmax_out.detach().numpy())
-            y_true.append(labels.item())
-
-        if pred.item() == labels.item():
-            results.append(1)
-        else:
-            results.append(0)
-
-        # handle very first test sample, postponed due to EA
-        if i == 1:
-            model.eval()
-            if args.align:
-                if 'ShallowFBCSPNet' in args.backbone:
-                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[0]
-                    inputs = inputs.reshape(1, inputs.shape[0], inputs.shape[1], 1)
-                else:
-                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
-                    inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-            if args.data_env != 'local':
-                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            else:
-                inputs = torch.from_numpy(inputs).to(torch.float32)
-            if flag:
-                _, outputs = model(inputs)
-            else:
-                if fc is not None:
-                    outputs, _ = model(inputs)  # modified
-                else:
-                    outputs = model(inputs)
-
-            outputs = outputs.float().cpu()
-            _, predict = tr.max(outputs, 1)
-            pred = tr.squeeze(predict).float()
-
-            if balanced:
-                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
-                y_true.append(labels.item())
-            else:
-                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
-                y_true.append(labels.item())
-            if pred.item() == labels.item():
-                results.append(1)
-            else:
-                results.append(0)
-
-        model.train()
-        if (i + 1) >= args.test_batch:
-            if args.align:
-                if 'ShallowFBCSPNet' in args.backbone:
-                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[
-                             i - args.test_batch + 1:i + 1]
-                    inputs = inputs.reshape(args.test_batch, inputs.shape[1], inputs.shape[2], 1)
-                else:
-                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
-                             i - args.test_batch + 1:i + 1]
-                    inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
-            start_time = time.time()
-
-            if args.data_env != 'local':
-                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            else:
-                inputs = torch.from_numpy(inputs).to(torch.float32)
-
-            for step in range(args.steps):
-
-                if flag:
-                    _, outputs = model(inputs)
-                else:
-                    if fc is not None:
-                        outputs, _ = model(inputs)  # modified
-                    else:
-                        outputs = model(inputs)
-
-                optimizer.zero_grad()
-
-                outputs = outputs.float().cpu()
-
-                # IM
-                args.t = 2  # temperature rescaling
-                args.epsilon = 1e-5
-                softmax_out = nn.Softmax(dim=1)(outputs / args.t)
-
-                entropy_loss = tr.mean(Entropy(softmax_out))
-                msoftmax = softmax_out.mean(dim=0)
-                gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
-
-                im_loss = entropy_loss + gentropy_loss
-                loss = im_loss
-
-                loss.backward()
-                optimizer.step()
-
-            model.eval()
-
-    if balanced:
-        _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
-        pred = tr.squeeze(predict).float()
-        score = accuracy_score(y_true, pred)
         y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]  # binary
         # y_pred = np.array(y_pred).reshape(-1, )  # multiclass
     else:
-        # y_pred = np.concatenate(y_pred)[:, 1]
-        # score = roc_auc_score(y_true, y_pred)
         _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
         pred = tr.squeeze(predict).float()
         score = balanced_accuracy_score(y_true, pred)
-        y_pred = np.array(y_pred).reshape(-1, )
-
-    return score * 100, y_pred
-
-
-def TTA_stack(loader, model, args, balanced=True, flag=True, fc=None):
-    y_true = []
-    y_pred = []
-    results = []
-    # ents = []
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    # RIM
-    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
-
-    # for DELTA
-    # z = [1 / 2, 1 / 2]
-    # z = [2 / 3, 1 / 3]
-
-    # c0 = 4 / 5
-    # c1 = 1 / 5
-
-    # c0 = 2 / 3
-    # c1 = 1 / 3
-
-    # c0 = 2 / 3
-    # c1 = 1 / 3
-
-    c0_ids = []
-    c1_ids = []
-
-    iter_test = iter(loader)
-    for i in range(len(loader)):
-
-        # print('sample ', str(i), ', input')
-
-        model.eval()
-        data = next(iter_test)
-        inputs = data[0]
-        labels = data[1]
-        if i == 0:
-            data_cum = inputs.float().cpu()
-            labels_cum = labels.float().cpu()
-            continue
-        else:
-            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
-            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
-
-        start_time = time.time()
-        if args.align:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-        EA_time = time.time()
-        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
-
-        if args.data_env != 'local':
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-        else:
-            inputs = torch.from_numpy(inputs).to(torch.float32)
-        if flag:
-            _, outputs = model(inputs)
-        else:
-            if fc is not None:
-                outputs, _ = model(inputs)  # modified
-            else:
-                outputs = model(inputs)
-
-        softmax_out = nn.Softmax(dim=1)(outputs)
-        # ent = Entropy(softmax_out)
-        # ents.append(np.round(ent.item(), 4))
-
-        outputs = outputs.float().cpu()
-        labels = labels.float().cpu()
-        _, predict = tr.max(outputs, 1)
-        pred = tr.squeeze(predict).float()
-
-        if balanced:
-            # y_pred.append(pred.item())
-            y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
-            y_true.append(labels.item())
-        else:
-            y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
-            y_true.append(labels.item())
-
-        if pred.item() == labels.item():
-            results.append(1)
-        else:
-            results.append(0)
-
-        # handle very first test sample, postponed due to EA
-        if i == 1:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-            if args.data_env != 'local':
-                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            else:
-                inputs = torch.from_numpy(inputs).to(torch.float32)
-            if flag:
-                _, outputs = model(inputs)
-            else:
-                if fc is not None:
-                    outputs, _ = model(inputs)  # modified
-                else:
-                    outputs = model(inputs)
-
-            outputs = outputs.float().cpu()
-            _, predict = tr.max(outputs, 1)
-            pred = tr.squeeze(predict).float()
-
-            if balanced:
-                # y_pred.append(pred.item())
-                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
-                y_true.append(labels.item())
-            else:
-                y_pred.append(nn.Softmax(dim=1)(outputs).detach().numpy())
-                y_true.append(labels.item())
-            if pred.item() == labels.item():
-                results.append(1)
-            else:
-                results.append(0)
-        start_time = time.time()
-
-        model.train()
-
-        # if (i + 1) % args.test_batch == 0:  # accumulative
-        # if (i + 1) >= args.test_batch and (len(c0_ids) < math.ceil(args.test_batch * z[1]) or len(c1_ids) < math.ceil(args.test_batch * z[0])):  # sliding
-        if (i + 1) == args.test_batch:
-
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
-                     i - args.test_batch + 1:i + 1]
-            inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
-            if args.data_env != 'local':
-                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            else:
-                inputs = torch.from_numpy(inputs).to(torch.float32)
-
-            steps = args.steps
-
-            for step in range(steps):
-                if flag:
-                    _, outputs = model(inputs)
-                else:
-                    if fc is not None:
-                        outputs, _ = model(inputs)  # modified
-                    else:
-                        outputs = model(inputs)
-                optimizer.zero_grad()
-                outputs = outputs.float().cpu()
-
-                # IM
-                args.t = 2  # temperature rescaling
-                args.epsilon = 1e-5
-                softmax_out = nn.Softmax(dim=1)(outputs / args.t)
-                entropy_loss = tr.mean(Entropy(softmax_out))
-                msoftmax = softmax_out.mean(dim=0)
-                gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
-                im_loss = entropy_loss + gentropy_loss
-
-                loss = im_loss
-
-                loss.backward()
-                optimizer.step()
-
-            args.pred_thresh = 0.7
-            pl = torch.max(softmax_out, 1)[1]
-            for l in range(args.test_batch):
-                if pl[l] == 0:
-                    if softmax_out[l][0] > args.pred_thresh:
-                        c0_ids = np.append(c0_ids, l)
-                elif pl[l] == 1:
-                    if softmax_out[l][1] > args.pred_thresh:
-                        c1_ids = np.append(c1_ids, l)
-                else:
-                    print('ERROR in pseudo labeling!')
-                    sys.exit(0)
-
-            # initialize ratio num(class0-class1), the imbalance ratio using confident predictions in the batch
-            ratio = 0
-            for l in range(args.test_batch):
-                if softmax_out[l][0] >= args.pred_thresh:
-                    ratio += 1
-                if softmax_out[l][1] > args.pred_thresh:
-                    ratio -= 1
-
-            print('start_ratio:', ratio)
-
-        elif (i + 1) > args.test_batch:
-
-            aligned = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))
-
-            current_batch = aligned[i - args.test_batch + 1:i + 1]
-            append_ids = []
-            ind = -1
-            ratio = round(args.test_batch * (len(c0_ids) - len(c1_ids)) / max(len(c0_ids), len(c1_ids)))
-
-            print('c0_ids:', c0_ids)
-            print('c1_ids:', c1_ids)
-            print('ratio:', ratio)
-
-            # last batch ratio is biased towards class 0
-            if ratio > 0:
-                if len(c1_ids) != 0:
-                    while len(append_ids) != ratio:
-                        try:
-                            append_ids = np.append(append_ids, c1_ids[ind])
-                        except:
-                            ind = -1
-                            append_ids = np.append(append_ids, c1_ids[ind])
-                        ind -= 1
-                    append_ids = append_ids.astype(int)
-                    inputs = np.concatenate([current_batch, aligned[append_ids]])
-                else:
-                    inputs = current_batch
-            # last batch ratio is biased towards class 1
-            elif ratio < 0:
-                ratio = -ratio
-                if len(c0_ids) != 0:
-                    while len(append_ids) != ratio:
-                        try:
-                            append_ids = np.append(append_ids, c0_ids[ind])
-                        except:
-                            ind = -1
-                            append_ids = np.append(append_ids, c0_ids[ind])
-                        ind -= 1
-                    append_ids = append_ids.astype(int)
-                    inputs = np.concatenate([current_batch, aligned[append_ids]])
-                else:
-                    inputs = current_batch
-            else:
-                inputs = current_batch
-
-            inputs = inputs.reshape(inputs.shape[0], 1, inputs.shape[1], inputs.shape[2])
-
-            if args.data_env != 'local':
-                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            else:
-                inputs = torch.from_numpy(inputs).to(torch.float32)
-
-            for step in range(args.steps):
-
-                if flag:
-                    _, outputs = model(inputs)
-                    # for ISFDA
-                    # embds, outputs = model(inputs)
-                else:
-                    if fc is not None:
-                        outputs, _ = model(inputs)  # modified
-                    else:
-                        outputs = model(inputs)
-
-                optimizer.zero_grad()
-
-                outputs = outputs.float().cpu()
-
-                # IM
-                args.t = 2  # temperature rescaling
-                args.epsilon = 1e-5
-                softmax_out = nn.Softmax(dim=1)(outputs / args.t)
-
-                entropy_loss = tr.mean(Entropy(softmax_out))
-                msoftmax = softmax_out.mean(dim=0)
-
-                gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
-
-                im_loss = entropy_loss + gentropy_loss
-                loss = im_loss
-
-                loss.backward()
-                optimizer.step()
-
-            '''
-            # update ratio with batch without appended samples
-            ratio = 0
-            for l in range(args.test_batch):
-                if softmax_out[l][0] >= args.pred_thresh:
-                    ratio += 1
-                if softmax_out[l][1] > args.pred_thresh:
-                    ratio -= 1
-            print('updated_ratio:', ratio)
-            '''
-            # update confident prediction ids for current test sample
-            pl = torch.max(softmax_out, 1)[1]
-            if pl[-1] == 0:
-                if softmax_out[-1][0] > args.pred_thresh:
-                    c0_ids = np.append(c0_ids, i)
-            elif pl[-1] == 1:
-                if softmax_out[-1][1] > args.pred_thresh:
-                    c1_ids = np.append(c1_ids, i)
-            else:
-                print('ERROR in pseudo labeling!')
-
-            model.eval()
-
-        TTA_time = time.time()
-        # print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
-
-    if balanced:
-        _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
-        pred = tr.squeeze(predict).float()
-        score = accuracy_score(y_true, pred)
-        y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]
-    else:
-        y_pred = np.concatenate(y_pred)[:, 1]
-        score = roc_auc_score(y_true, y_pred)
-
-    return score * 100, y_pred
-
-
-def TTA_LAME(loader, model, args, balanced=True, flag=True, fc=None):
-    # https://github.com/fiveai/LAME
-    y_true = []
-    y_pred = []
-    results = []
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-
-    iter_test = iter(loader)
-    for i in range(len(loader)):
-
-        model.eval()
-        data = next(iter_test)
-        inputs = data[0]
-        labels = data[1]
-        if i == 0:
-            data_cum = inputs.float().cpu()
-            labels_cum = labels.float().cpu()
-            continue
-        else:
-            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
-            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
-
-        start_time = time.time()
-        if args.align:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-        EA_time = time.time()
-        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
-
-        model.eval()
-
-        inputs = torch.from_numpy(inputs).to(torch.float32)
-        if args.data_env != 'local':
-            inputs = inputs.cuda()
-        _, outputs = model(inputs)
-
-        labels = labels.float().cpu()
-        _, predict = torch.max(outputs.data, 1)
-
-        pred = tr.squeeze(predict).float()
-
-        y_pred.append(pred.item())
-        y_true.append(labels.item())
-
-        if pred.item() == labels.item():
-            results.append(1)
-        else:
-            results.append(0)
-
-        model.eval()
-
-        # handle very first test sample, postponed due to EA
-        if i == 1:
-            model.eval()
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-            model.eval()
-
-            inputs = torch.from_numpy(inputs).to(torch.float32)
-            if args.data_env != 'local':
-                inputs = inputs.cuda()
-            _, outputs = model(inputs)
-
-            _, predict = torch.max(outputs.data, 1)
-            pred = tr.squeeze(predict).float()
-
-            y_pred.append(pred.item())
-            y_true.append(labels.item())
-            if pred.item() == labels.item():
-                results.append(1)
-            else:
-                results.append(0)
-
-        model.train()
-        if (i + 1) >= args.test_batch:
-            if args.align:
-                if 'ShallowFBCSPNet' in args.backbone:
-                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[1], data_cum.shape[2]))[
-                             i - args.test_batch + 1:i + 1]
-                    inputs = inputs.reshape(args.test_batch, inputs.shape[1], inputs.shape[2], 1)
-                else:
-                    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
-                             i - args.test_batch + 1:i + 1]
-                    inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
-            start_time = time.time()
-
-            if args.data_env != 'local':
-                inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            else:
-                inputs = torch.from_numpy(inputs).to(torch.float32)
-
-            feats, outputs = model(inputs)
-            optimizer.zero_grad()
-            outputs = outputs.float().cpu()
-            args.t = 2  # temperature rescaling
-            probas = nn.Softmax(dim=1)(outputs)
-            print(probas)
-
-            # --- Get unary and terms and kernel ---
-            unary = - torch.log(probas + 1e-10)  # [N, K]
-            print(unary)
-            # feats = self.model.backbone.out   # [N, d]
-            feats = torch.nn.functional.normalize(feats, p=2, dim=-1)  # [N, d]
-            # kernel = self.affinity(feats)  # [N, N]
-
-            # linear affinity
-            kernel = torch.matmul(feats, feats.t())
-            '''
-            # rbf affinity
-            def rbf_affinity(X, k=5):
-                N = X.size(0)
-                dist = torch.norm(X.unsqueeze(0) - X.unsqueeze(1), dim=-1, p=2)  # [N, N]
-                n_neighbors = min(k, N)
-                kth_dist = dist.topk(k=n_neighbors, dim=-1, largest=False).values[:,
-                           -1]  # compute k^th distance for each point, [N, knn + 1]
-                sigma = kth_dist.mean()
-                rbf = torch.exp(- dist ** 2 / (2 * sigma ** 2))
-                # mask = torch.eye(X.size(0)).to(X.device)
-                # rbf = rbf * (1 - mask)
-                return rbf
-            kernel = rbf_affinity(feats)
-            '''
-            # if self.force_symmetry:
-            #    kernel = 1/2 * (kernel + kernel.t())
-            '''
-            _C.ADAPTATION.PL_THRESHOLD = 0.9
-            _C.ADAPTATION.LAME_KNN = 5
-            _C.ADAPTATION.LAME_SIGMA = 1.0
-            _C.ADAPTATION.LAME_AFFINITY = 'rbf'
-            _C.ADAPTATION.LAME_FORCE_SYMMETRY = False
-            '''
-
-            def entropy_energy(Y, unary, pairwise, bound_lambda):
-                E = (unary * Y - bound_lambda * pairwise * Y + Y * torch.log(Y.clip(1e-20))).sum()
-                return E
-
-            def laplacian_optimization(unary, kernel, bound_lambda=1, max_steps=100):
-
-                E_list = []
-                oldE = float('inf')
-                Y = (-unary).softmax(-1)  # [N, K]
-                for i in range(max_steps):
-                    pairwise = bound_lambda * kernel.matmul(Y)  # [N, K]
-                    exponent = -unary + pairwise
-                    Y = exponent.softmax(-1)
-                    E = entropy_energy(Y, unary, pairwise, bound_lambda).item()
-                    E_list.append(E)
-
-                    if (i > 1 and (abs(E - oldE) <= 1e-8 * abs(oldE))):
-                        print('ERROR laplacian_optimization')
-                        sys.exit(0)
-                    else:
-                        oldE = E
-
-                return Y
-
-            # --- Perform optim ---
-            Y = laplacian_optimization(unary, kernel)
-
-            model.eval()
-
-    if balanced:
-        score = accuracy_score(y_true, y_pred)
-    else:
-        score = balanced_accuracy_score(y_true, y_pred)
+        # score = roc_auc_score(y_true, y_pred)
+        # _, predict = tr.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
+        # pred = tr.squeeze(predict).float()
+        # score = balanced_accuracy_score(y_true, pred)
+        y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]  # binary
 
     return score * 100, y_pred
 
@@ -2191,351 +1494,6 @@ def TTA_SAR(loader, model, args, balanced=True, flag=True, fc=None):
     else:
         y_pred = np.concatenate(y_pred)[:, 1]
         score = roc_auc_score(y_true, y_pred)
-
-    return score * 100, y_pred
-
-
-"""
-def TTA_SAR(loader, model, args, balanced=True, flag=True, fc=None):
-    # SAR from https://github.com/mr-eggplant/SAR
-    y_true = []
-    y_pred = []
-    results = []
-    ents = []
-
-    optimizer = torch.optim.SGD
-    model = sar.configure_model(model)
-    params, param_names = sar.collect_params(model)
-    opt = SAM(params, optimizer, lr=args.lr, momentum=0.9)
-    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
-
-    iter_test = iter(loader)
-    for i in range(len(loader)):
-
-        #print('sample ', str(i), ', input')
-
-        model.eval()
-        data = next(iter_test)
-        inputs = data[0]
-        labels = data[1]
-        if i == 0:
-            data_cum = inputs.float().cpu()
-            labels_cum = labels.float().cpu()
-            continue
-        else:
-            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
-            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
-
-        start_time = time.time()
-        if args.align:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-        EA_time = time.time()
-        #print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
-
-        inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-
-        model.train()
-
-        tta = SAR(model, opt)
-        outputs = tta(inputs)
-
-        labels = labels.float().cpu()
-        _, predict = torch.max(outputs.data, 1)
-
-        pred = tr.squeeze(predict).float()
-
-        y_pred.append(pred.item())
-        y_true.append(labels.item())
-
-        if pred.item() == labels.item():
-            results.append(1)
-        else:
-            results.append(0)
-
-        model.eval()
-
-        # handle very first test sample, postponed due to EA
-        if i == 1:
-            model.train()
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            tta = SAR(model, opt)
-            outputs = tta(inputs)
-
-            _, predict = torch.max(outputs.data, 1)
-            pred = tr.squeeze(predict).float()
-
-            y_pred.append(pred.item())
-            y_true.append(labels.item())
-            if pred.item() == labels.item():
-                results.append(1)
-            else:
-                results.append(0)
-
-            model.eval()
-
-        start_time = time.time()
-
-        #if (i + 1) % args.test_batch == 0:  # accumulative
-
-        model.train()
-
-        TTA_time = time.time()
-        #print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
-
-    if balanced:
-        score = accuracy_score(y_true, y_pred)
-    else:
-        score = balanced_accuracy_score(y_true, y_pred)
-
-    #print(results)
-    #print(ents)
-
-    return score * 100
-"""
-
-
-def TTA_single(loader, model, args, balanced=True, flag=True, fc=None):
-    y_true = []
-    y_pred = []
-    results = []
-    ents = []
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
-
-    iter_test = iter(loader)
-    for i in range(len(loader)):
-
-        # print('sample ', str(i), ', input')
-
-        model.eval()
-        data = next(iter_test)
-        inputs = data[0]
-        labels = data[1]
-        if i == 0:
-            data_cum = inputs.float().cpu()
-            labels_cum = labels.float().cpu()
-            continue
-        else:
-            data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
-            labels_cum = tr.cat((labels_cum, labels.float().cpu()), 0)
-
-        start_time = time.time()
-        if args.align:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[i]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-        EA_time = time.time()
-        # print('sample ', str(i), ', EA finished time in ms:', np.round((EA_time - start_time) * 1000,3))
-
-        inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-        if flag:
-            _, outputs = model(inputs)
-        else:
-            if fc is not None:
-                outputs, _ = model(inputs)  # modified
-            else:
-                outputs = model(inputs)
-
-        softmax_out = nn.Softmax(dim=1)(outputs)
-        ent = Entropy(softmax_out)
-        ents.append(np.round(ent.item(), 4))
-
-        outputs = outputs.float().cpu()
-        labels = labels.float().cpu()
-        _, predict = tr.max(outputs, 1)
-        pred = tr.squeeze(predict).float()
-
-        y_pred.append(pred.item())
-        y_true.append(labels.item())
-
-        if pred.item() == labels.item():
-            results.append(1)
-        else:
-            results.append(0)
-
-        # handle very first test sample, postponed due to EA
-        if i == 1:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[0]
-            inputs = inputs.reshape(1, 1, inputs.shape[0], inputs.shape[1])
-
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-            if flag:
-                _, outputs = model(inputs)
-            else:
-                if fc is not None:
-                    outputs, _ = model(inputs)  # modified
-                else:
-                    outputs = model(inputs)
-
-            outputs = outputs.float().cpu()
-            _, predict = tr.max(outputs, 1)
-            pred = tr.squeeze(predict).float()
-
-            y_pred.append(pred.item())
-            y_true.append(labels.item())
-            if pred.item() == labels.item():
-                results.append(1)
-            else:
-                results.append(0)
-
-        start_time = time.time()
-
-        # if (i + 1) % args.test_batch == 0:  # accumulative
-
-        model.train()
-
-        if (i + 1) >= args.test_batch:  # sliding
-
-            # inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[-1]
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))[
-                     i - args.test_batch + 1:i + 1]
-
-            # inputs = inputs.reshape(1, 1, inputs.shape[1], inputs.shape[2])
-            inputs = inputs.reshape(args.test_batch, 1, inputs.shape[1], inputs.shape[2])
-
-            # else:
-            #    inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))
-            #    inputs = inputs.reshape(-1, 1, inputs.shape[1], inputs.shape[2])
-
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-
-            # noise = np.random.normal(0., 0.01, (inputs.shape[2], inputs.shape[3]))
-
-            # noised_inputs = inputs + torch.from_numpy(noise).to(torch.float32).cuda()
-
-            for step in range(args.steps):
-
-                if flag:
-                    _, outputs = model(inputs)
-                else:
-                    if fc is not None:
-                        outputs, _ = model(inputs)  # modified
-                    else:
-                        outputs = model(inputs)
-
-                optimizer.zero_grad()
-
-                outputs = outputs.float().cpu()
-
-                '''
-                # Pseudo-label
-                criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-                pseudo_labels = torch.max(outputs, dim=1)[1]
-                clf_loss = criterion(outputs, pseudo_labels)
-                '''
-                '''
-                # MCC
-                args.t_mcc = 2  # temperature rescaling
-                mcc_loss = ClassConfusionLoss(t=args.t_mcc)(outputs)
-                #loss = mcc_loss
-                '''
-                '''
-                # Entropy
-                args.t = 2  # temperature rescaling
-                softmax_out = nn.Softmax(dim=1)(outputs / args.t)
-                loss = Entropy(softmax_out)
-                loss = torch.mean(loss)
-                '''
-                # IM
-                args.t = 2  # temperature rescaling
-                # args.t = 2 - i / 200  # adaptive temperature rescaling
-                args.epsilon = 1e-5
-                softmax_out = nn.Softmax(dim=1)(outputs / args.t)
-                entropy_loss = torch.mean(Entropy(softmax_out))
-                msoftmax = softmax_out.mean(dim=0)
-                gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
-
-                '''
-                # remove sample with biggest uncertainty in the batch from BP
-                max_uncertainty_sample_id = torch.min(torch.abs(softmax_out[:, 0] - 0.5), 0)[1]
-                outputs[max_uncertainty_sample_id].detach()
-                softmax_out = torch.cat((softmax_out[:max_uncertainty_sample_id],softmax_out[max_uncertainty_sample_id+1:]))
-
-                entropy_loss = Entropy(softmax_out)
-                msoftmax = softmax_out.mean(dim=0)
-                gentropy_loss = tr.sum(msoftmax * tr.log(msoftmax + args.epsilon))
-
-                #imbalance_level = (np.max([class_0_num, class_1_num]) / args.test_batch) * 2
-
-                #gentropy_loss *= imbalance_level
-
-                #im_loss = entropy_loss + gentropy_loss * trade_off
-                im_loss = entropy_loss + gentropy_loss
-                '''
-
-                '''
-                # self-supervision
-                with torch.no_grad():
-                    if flag:
-                        _, noised_outputs = model(noised_inputs)
-                    else:
-                        if fc is not None:
-                            noised_outputs, _ = model(noised_inputs)  # modified
-                        else:
-                            noised_outputs = model(noised_inputs)
-
-                    noised_outputs = noised_outputs.float().cpu()
-                    noised_softmax_out = nn.Softmax(dim=1)(noised_outputs / args.t)
-                    noised_entropy_loss = tr.mean(Entropy(noised_softmax_out))
-
-                diff_loss = torch.abs(noised_entropy_loss - entropy_loss)
-                '''
-
-                # reg = torch.abs(entropy_loss - torch.mean(torch.from_numpy(np.array(ents))))
-
-                # loss = 0.2 * clf_loss + im_loss
-                # loss = im_loss + reg
-                loss = entropy_loss + gentropy_loss
-
-                # print('loss', loss, entropy_loss, gentropy_loss)
-                # loss = mcc_loss + im_loss
-
-                loss.backward()
-                optimizer.step()
-
-            model.eval()
-
-        TTA_time = time.time()
-        # print('sample ', str(i), ', TTA finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
-
-        '''
-        # entropy calculation
-        if i != 0:
-            inputs = EA(data_cum.reshape(data_cum.shape[0], data_cum.shape[2], data_cum.shape[3]))
-            inputs = inputs.reshape((i+1), 1, inputs.shape[1], inputs.shape[2])
-
-            inputs = torch.from_numpy(inputs).to(torch.float32).cuda()
-
-            if flag:
-                _, outputs = model(inputs)
-            else:
-                if fc is not None:
-                    outputs, _ = model(inputs)  # modified
-                else:
-                    outputs = model(inputs)
-
-            optimizer.zero_grad()
-
-            outputs = outputs.float().cpu()
-            softmax_out = nn.Softmax(dim=1)(outputs)
-            ent = Entropy(softmax_out)
-            ent_mean = torch.mean(ent)
-            print(i, ent_mean)
-        '''
-
-    if balanced:
-        score = accuracy_score(y_true, y_pred)
-    else:
-        score = balanced_accuracy_score(y_true, y_pred)
-
-    # print(results)
-    # print(ents)
 
     return score * 100, y_pred
 
@@ -3075,6 +2033,61 @@ def TTA_ensemble_delay(loader, models, args, balanced=True, flag=True, fc=None):
     return score * 100
 
 
+def cal_score_online(loader, model, args):
+    y_true = []
+    y_pred = []
+    model.eval()
+    # initialize test reference matrix for Incremental EA
+    if args.align:
+        R = 0
+    with tr.no_grad():
+        iter_test = iter(loader)
+        for i in range(len(loader)):
+            data = next(iter_test)
+            inputs = data[0].cpu()
+            labels = data[1]
+            if i == 0:
+                data_cum = inputs.float().cpu()
+            else:
+                data_cum = tr.cat((data_cum, inputs.float().cpu()), 0)
+
+            if args.align:
+                # update reference matrix
+                R = EA_online(inputs.reshape(args.chn, args.time_sample_num), R, i)
+                sqrtRefEA = fractional_matrix_power(R, -0.5)
+                # transform current test sample
+                inputs = np.dot(sqrtRefEA, inputs)
+                inputs = inputs.reshape(1, 1, args.chn, args.time_sample_num)
+
+            inputs = torch.from_numpy(inputs).to(torch.float32)
+            if args.data_env != 'local':
+                inputs = inputs.cuda()
+            _, outputs = model(inputs)
+            outputs = outputs.float().cpu()
+            labels = labels.float().cpu()
+            _, predict = tr.max(outputs, 1)
+            pred = tr.squeeze(predict).float()
+            y_pred.append(pred.item())
+            y_true.append(labels.item())
+
+            if i == 0:
+                all_output = outputs.float().cpu()
+                all_label = labels.float()
+            else:
+                all_output = tr.cat((all_output, outputs.float().cpu()), 0)
+                all_label = tr.cat((all_label, labels.float()), 0)
+
+    if args.balanced:
+        score = accuracy_score(y_true, y_pred)
+    else:
+        all_output = nn.Softmax(dim=1)(all_output)
+        true = all_label.cpu()
+        pred = all_output[:, 1].detach().numpy()
+        score = roc_auc_score(true, pred)
+
+    return score * 100
+
+
 def cal_acc_online_testPL(loader, model, args, balanced=True, flag=True, fc=None):
     y_true = []
     y_pred = []
@@ -3172,47 +2185,17 @@ def cal_acc_online_testPL(loader, model, args, balanced=True, flag=True, fc=None
     return score * 100
 
 
-def cal_bca_comb(loader, model, flag=True, fc=None):
+def cal_auc_comb(loader, model, flag=True, fc=None, args=None):
     start_test = True
+    model.eval()
     with tr.no_grad():
         iter_test = iter(loader)
         for i in range(len(loader)):
             data = next(iter_test)
             inputs = data[0]
             labels = data[1]
-            inputs = inputs.cuda()
-            if flag:
-                _, outputs = model(inputs)
-            else:
-                if fc is not None:
-                    outputs, _ = model(inputs)  # modified
-                else:
-                    outputs = model(inputs)
-            if start_test:
-                all_output = outputs.float().cpu()
-                all_label = labels.float()
-                start_test = False
-            else:
-                all_output = tr.cat((all_output, outputs.float().cpu()), 0)
-                all_label = tr.cat((all_label, labels.float()), 0)
-    all_output = nn.Softmax(dim=1)(all_output)
-    _, predict = tr.max(all_output, 1)
-    pred = tr.squeeze(predict).float()
-    true = all_label.cpu()
-    bca = balanced_accuracy_score(true, pred)
-
-    return bca * 100, pred
-
-
-def cal_auc_comb(loader, model, flag=True, fc=None):
-    start_test = True
-    with tr.no_grad():
-        iter_test = iter(loader)
-        for i in range(len(loader)):
-            data = next(iter_test)
-            inputs = data[0]
-            labels = data[1]
-            inputs = inputs.cuda()
+            if args.data_env != 'local':
+                inputs = inputs.cuda()
             if flag:
                 _, outputs = model(inputs)
             else:
@@ -3237,234 +2220,12 @@ def cal_auc_comb(loader, model, flag=True, fc=None):
     return auc * 100, pred
 
 
-def cal_metrics_ms(loader, netF, netCs, N, class_out, metrics):
-    y_true = []
-    y_pred = []
-    with torch.no_grad():
-        for x, y in loader:
-            all_probs = None
-            votes = None
-            for i in range(N - 1):
-                x = x.cuda()
-                y = y.cuda()
-                outputs = netF(x)
-                outputs = netCs[i](outputs)
-                predicted_probs = torch.nn.functional.softmax(outputs, dim=1)
-                if all_probs is None:
-                    all_probs = torch.zeros((x.shape[0], class_out)).cuda()
-                else:
-                    all_probs += predicted_probs.reshape(x.shape[0], class_out)
-
-                _, predicted = torch.max(predicted_probs, 1)
-
-                if votes is None:
-                    votes = torch.zeros((x.shape[0], class_out)).cuda()
-
-                for i in range(x.shape[0]):
-                    votes[i, predicted[i]] += 1
-            # _, predicted = torch.max(votes, 1)  # VOTING
-            _, predicted = torch.max(all_probs, 1)  # PROBABILITY average
-            y_true.append(y.cpu())
-            y_pred.append(predicted.cpu())
-    score = metrics(np.concatenate(y_true).reshape(-1, ).tolist(), np.concatenate(y_pred)).reshape(-1, )[0]
-    return score * 100
-
-
 def pairwise_distances_logits(a, b):
     n = a.shape[0]
     m = b.shape[0]
     logits = -((a.unsqueeze(1).expand(n, m, -1) -
                 b.unsqueeze(0).expand(n, m, -1)) ** 2).sum(dim=2)
     return logits
-
-
-def cal_acc_msmm(loader, netF, all_centers, metrics):
-    start_test = True
-    # assume 2 classes
-    subj_num = len(all_centers) // 2
-    with tr.no_grad():
-        iter_test = iter(loader)
-        for i in range(len(loader)):
-            data = next(iter_test)
-            inputs = data[0]
-            labels = data[1]
-            inputs = inputs.cuda()
-            outputs_feature = netF(inputs)
-            outputs = pairwise_distances_logits(outputs_feature,
-                                                all_centers)
-            if start_test:
-                all_output = outputs.float().cpu()
-                all_label = labels.float()
-                all_outputs_feature = outputs_feature
-                start_test = False
-            else:
-                all_output = tr.cat((all_output, outputs.float().cpu()), 0)
-                all_label = tr.cat((all_label, labels.float()), 0)
-                all_outputs_feature = tr.cat((all_outputs_feature, outputs_feature), 0)
-
-    all_output = nn.Softmax(dim=1)(all_output)
-
-    all_output = all_output.reshape(all_output.shape[0], 2, -1).sum(dim=2)
-
-    _, predict = tr.max(all_output, 1)
-    pred = tr.squeeze(predict).float()
-    true = all_label.cpu()
-    score = metrics(true, pred)
-
-    return score * 100
-
-
-def cal_bca_ms_distance(loader, model, source_class_centers):
-    start_test = True
-    with tr.no_grad():
-        iter_test = iter(loader)
-        for i in range(len(loader)):
-            data = next(iter_test)
-            inputs = data[0]
-            labels = data[1]
-            inputs = inputs.cuda()
-            outputs_feature, outputs = model(inputs)
-            if start_test:
-                all_output = outputs.float().cpu()
-                all_label = labels.float()
-                all_outputs_feature = outputs_feature
-                start_test = False
-            else:
-                all_output = tr.cat((all_output, outputs.float().cpu()), 0)
-                all_label = tr.cat((all_label, labels.float()), 0)
-                all_outputs_feature = tr.cat((all_outputs_feature, outputs_feature), 0)
-
-    logits = pairwise_distances_logits(all_outputs_feature, source_class_centers)
-    all_output = nn.Softmax(dim=1)(all_output)
-    _, predict = tr.max(all_output, 1)
-    pred = tr.squeeze(predict).float()
-    true = all_label.cpu()
-    bca = balanced_accuracy_score(true, pred)
-
-    return bca * 100
-
-
-def cal_acc_comb_fusion(loader_k, loader_d, model, flag=True, fc=None):
-    start_test = True
-    with tr.no_grad():
-        iter_test_k = iter(loader_k)
-        iter_test_d = iter(loader_d)
-        for i in range(len(loader_k)):
-            k = next(iter_test_k)
-            d = next(iter_test_d)
-            inputs_k = k[0]
-            labels_k = k[1]
-            inputs_d = d[0]
-            labels_d = d[1]
-            inputs_k, inputs_d = inputs_k.cuda(), inputs_d.cuda()
-            if flag:
-                _, outputs = model((inputs_k, inputs_d))
-            else:
-                if fc is not None:
-                    feas, outputs = model((inputs_k, inputs_d))
-                    outputs = fc(feas)
-                else:
-                    outputs = model((inputs_k, inputs_d))
-            if start_test:
-                all_output = outputs.float().cpu()
-                all_label = labels_k.float()
-                start_test = False
-            else:
-                all_output = tr.cat((all_output, outputs.float().cpu()), 0)
-                all_label = tr.cat((all_label, labels_k.float()), 0)
-    all_output = nn.Softmax(dim=1)(all_output)
-    _, predict = tr.max(all_output, 1)
-    pred = tr.squeeze(predict).float()
-    true = all_label.cpu()
-    acc = accuracy_score(true, pred)
-
-    return acc * 100
-
-
-def cal_bca_comb_fusion(loader_k, loader_d, model, flag=True, fc=None):
-    start_test = True
-    with tr.no_grad():
-        iter_test_k = iter(loader_k)
-        iter_test_d = iter(loader_d)
-        for i in range(len(loader_k)):
-            k = next(iter_test_k)
-            d = next(iter_test_d)
-            inputs_k = k[0]
-            labels_k = k[1]
-            inputs_d = d[0]
-            labels_d = d[1]
-            inputs_k, inputs_d = inputs_k.cuda(), inputs_d.cuda()
-            if flag:
-                _, outputs = model((inputs_k, inputs_d))
-            else:
-                if fc is not None:
-                    feas, outputs = model((inputs_k, inputs_d))
-                    outputs = fc(feas)
-                else:
-                    outputs = model((inputs_k, inputs_d))
-            if start_test:
-                all_output = outputs.float().cpu()
-                all_label = labels_k.float()
-                start_test = False
-            else:
-                all_output = tr.cat((all_output, outputs.float().cpu()), 0)
-                all_label = tr.cat((all_label, labels_k.float()), 0)
-    all_output = nn.Softmax(dim=1)(all_output)
-    _, predict = tr.max(all_output, 1)
-    pred = tr.squeeze(predict).float()
-    true = all_label.cpu()
-    acc = balanced_accuracy_score(true, pred)
-
-    return acc * 100
-
-
-def cal_acc_multi(loader, netF_list, netC_list, args, weight_epoch=None, netG_list=None):
-    num_src = len(netF_list)
-    for i in range(len(netF_list)): netF_list[i].eval()
-
-    if args.use_weight:
-        if args.method == 'msdt':
-            domain_weight = weight_epoch.detach()
-            # tmp_weight = np.round(tr.squeeze(domain_weight, 0).t().cpu().detach().numpy().flatten(), 3)
-            # print('\ntest domain weight: ', tmp_weight)
-    else:
-        domain_weight = tr.Tensor([1 / num_src] * num_src).reshape([1, num_src, 1]).cuda()
-
-    start_test = True
-    with tr.no_grad():
-        iter_test = iter(loader)
-        for _ in range(len(loader)):
-            data = next(iter_test)
-            inputs, labels = data[0].cuda(), data[1]
-
-            if args.use_weight:
-                if args.method == 'decision':
-                    weights_all = tr.ones(inputs.shape[0], len(args.src))
-                    tmp_output = tr.zeros(len(args.src), inputs.shape[0], args.class_num)
-                    for i in range(len(args.src)):
-                        tmp_output[i] = netC_list[i](netF_list[i](inputs))
-                        weights_all[:, i] = netG_list[i](tmp_output[i]).squeeze()
-                    z = tr.sum(weights_all, dim=1) + 1e-16
-                    weights_all = tr.transpose(tr.transpose(weights_all, 0, 1) / z, 0, 1)
-                    weights_domain = tr.sum(weights_all, dim=0) / tr.sum(weights_all)
-                    domain_weight = weights_domain.reshape([1, num_src, 1]).cuda()
-
-            outputs_all = tr.cat([netC_list[i](netF_list[i](inputs)).unsqueeze(1) for i in range(num_src)], 1).cuda()
-            preds = tr.softmax(outputs_all, dim=2)
-            outputs_all_w = (preds * domain_weight).sum(dim=1).cuda()
-
-            if start_test:
-                all_output = outputs_all_w.float().cpu()
-                all_label = labels.float()
-                start_test = False
-            else:
-                all_output = tr.cat((all_output, outputs_all_w.float().cpu()), 0)
-                all_label = tr.cat((all_label, labels.float()), 0)
-    _, predict = tr.max(all_output, 1)
-    accuracy = tr.sum(tr.squeeze(predict).float() == all_label).item() / float(all_label.size()[0])
-    for i in range(len(netF_list)): netF_list[i].train()
-
-    return accuracy * 100
 
 
 def data_alignment(X, num_subjects, args):
@@ -3513,18 +2274,17 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     train_bs = args.batch_size
 
     Xt_copy = Xt
-    if args.align and not args.feature:
+    if args.align:
         Xs = data_alignment(Xs, args.N - 1, args)
-        Xt_copy = Xt
         Xt = data_alignment(Xt, 1, args)
 
     src_idx = np.arange(len(Ys))
-    if args.validation == 'None':
-        num_all = args.trial_num
-        id_train = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
-        id_val = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
+
+    num_all = args.trial_num
+    id_train = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
+    id_val = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
     valid_Xs, valid_Ys = tr.from_numpy(Xs[id_val, :]).to(
-        tr.float32), tr.from_numpy(Ys[id_val].reshape(-1, )).to(tr.long)
+    tr.float32), tr.from_numpy(Ys[id_val].reshape(-1, )).to(tr.long)
     valid_Xs = valid_Xs.unsqueeze_(3)
     if 'EEGNet' in args.backbone:
         valid_Xs = valid_Xs.permute(0, 3, 1, 2)
@@ -3553,40 +2313,21 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     if 'EEGNet' in args.backbone:
         Xt_copy = Xt_copy.permute(0, 3, 1, 2)
 
-    try:
-        data_src = Data.TensorDataset(Xs.cuda(), Ys.cuda())
-        source_tr = Data.TensorDataset(train_Xs.cuda(), train_Ys.cuda())
-        source_te = Data.TensorDataset(valid_Xs.cuda(), valid_Ys.cuda())
-        data_tar = Data.TensorDataset(Xt.cuda(), Yt.cuda())
+    if args.data_env != 'local':
+        Xs, Ys, Xt, Yt, train_Xs, train_Ys, valid_Xs, valid_Ys, Xt_copy = Xs.cuda(), Ys.cuda(), Xt.cuda(), Yt.cuda(), train_Xs.cuda(), train_Ys.cuda(), valid_Xs.cuda(), valid_Ys.cuda(), Xt_copy.cuda()
 
-        data_tar_online = Data.TensorDataset(Xt_copy.cuda(), Yt.cuda())
+    data_src = Data.TensorDataset(Xs, Ys)
+    source_tr = Data.TensorDataset(train_Xs, train_Ys)
+    source_te = Data.TensorDataset(valid_Xs, valid_Ys)
+    data_tar = Data.TensorDataset(Xt, Yt)
 
-        sources_ms = []
-        train_Xs_ms = split_data(train_Xs, axis=0, times=args.N - 1)
-        train_Ys_ms = split_data(train_Ys, axis=0, times=args.N - 1)
-        for i in range(args.N - 1):
-            source = Data.TensorDataset(train_Xs_ms[i].cuda(), train_Ys_ms[i].cuda())
-            sources_ms.append(source)
-    except Exception:
-        data_src = Data.TensorDataset(Xs, Ys)
-        source_tr = Data.TensorDataset(train_Xs, train_Ys)
-        source_te = Data.TensorDataset(valid_Xs, valid_Ys)
-        data_tar = Data.TensorDataset(Xt, Yt)
+    data_tar_online = Data.TensorDataset(Xt_copy, Yt)
 
-        data_tar_online = Data.TensorDataset(Xt_copy, Yt)
-
-        sources_ms = []
-        train_Xs_ms = split_data(train_Xs, axis=0, times=args.N - 1)
-        train_Ys_ms = split_data(train_Ys, axis=0, times=args.N - 1)
-        for i in range(args.N - 1):
-            source = Data.TensorDataset(train_Xs_ms[i], train_Ys_ms[i])
-            sources_ms.append(source)
-
-    # for DNN
+    # for DNN base model
     dset_loaders["source_tr"] = Data.DataLoader(source_tr, batch_size=train_bs, shuffle=True, drop_last=True)
     dset_loaders["source_te"] = Data.DataLoader(source_te, batch_size=train_bs, shuffle=False, drop_last=False)
 
-    # for DAN/DANN/CDAN/MCC
+    # for TL
     dset_loaders["source"] = Data.DataLoader(data_src, batch_size=train_bs, shuffle=True, drop_last=True)
     dset_loaders["target"] = Data.DataLoader(data_tar, batch_size=train_bs, shuffle=True, drop_last=True)
 
@@ -3598,55 +2339,19 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     dset_loaders["Target-Online"] = Data.DataLoader(data_tar_online, batch_size=1, shuffle=False, drop_last=False)
 
     # for online imbalanced dataset
-    # test
+    # only implemented for binary (class_num=2) for now
     class_0_ids = torch.where(Yt == 0)[0][:args.trial_num // 2]
-    class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 4]  # single imbalance (train 1:1, test 2:1)
-    # class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 8]  # double imbalance (train 2:1, test 4:1)
+    class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 4]
     all_ids = torch.cat([class_0_ids, class_1_ids])
-    # print('all_ids test len:', len(all_ids))
     if args.data_env != 'local':
         data_tar_imb = Data.TensorDataset(Xt_copy[all_ids].cuda(), Yt[all_ids].cuda())
     else:
         data_tar_imb = Data.TensorDataset(Xt_copy[all_ids], Yt[all_ids])
     dset_loaders["Target-Online-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=1, shuffle=True,
-                                                               drop_last=False)  # shuffle to prevent sequences of same class
+                                                               drop_last=False)
     dset_loaders["target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs, shuffle=True, drop_last=True)
     dset_loaders["Target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs * 3, shuffle=True,
                                                         drop_last=False)
-
-    if args.class_num == 2:
-        # source
-        indices = []
-        for i in range(args.N - 1):
-            indices.append(np.arange(args.trial_num // 2) + ((args.trial_num // 2) * i))
-        indices = np.concatenate(indices, axis=0)
-        class_0_ids = torch.where(Ys == 0)[0][indices]
-        indices = []
-        for i in range(args.N - 1):
-            indices.append(np.arange(args.trial_num // 2) + ((args.trial_num // 2) * i))  # single
-            # indices.append(np.arange(args.trial_num // 2) + ((args.trial_num // 4) * i))  # double
-        indices = np.concatenate(indices, axis=0)
-        class_1_ids = torch.where(Ys == 1)[0][indices]
-        all_ids = torch.cat([class_0_ids, class_1_ids])
-        if args.data_env != 'local':
-            data_src_imb = Data.TensorDataset(Xs[all_ids].cuda(), Ys[all_ids].cuda())
-        else:
-            data_src_imb = Data.TensorDataset(Xs[all_ids], Ys[all_ids])
-        dset_loaders["source-Imbalanced"] = Data.DataLoader(data_src_imb, batch_size=train_bs, shuffle=True,
-                                                            drop_last=True)
-
-        # for multi-sources
-        loader_arr = []
-        for i in range(args.N - 1):
-            loader = Data.DataLoader(sources_ms[i], batch_size=train_bs, shuffle=True, drop_last=True)
-            loader_arr.append(loader)
-        dset_loaders["sources"] = loader_arr
-
-        loader_arr_S = []
-        for i in range(args.N - 1):
-            loader = Data.DataLoader(sources_ms[i], batch_size=train_bs, shuffle=True, drop_last=False)
-            loader_arr_S.append(loader)
-        dset_loaders["Sources"] = loader_arr_S
 
     return dset_loaders
 

@@ -51,7 +51,6 @@ def traintest_split_cross_subject(dataset, X, y, num_subjects, test_subject_id):
     return train_x, train_y, test_x, test_y
 
 
-
 def dataset_to_file(dataset_name, data_save):
     moabb.set_log_level("ERROR")
     if dataset_name == 'BNCI2014001':
@@ -135,23 +134,11 @@ def dataset_to_file(dataset_name, data_save):
 
 
 if __name__ == '__main__':
-    #dataset_name = 'BNCI2014001'
-    #dataset_name = 'BNCI2014002'
-    #dataset_name = 'BNCI2014004'
-    #dataset_name = 'BNCI2015001'
-    #dataset_name = 'PhysionetMI'
-    #dataset_name = 'BNCI2015004'
-    #dataset_name = 'BNCI2014008'
-    #dataset_name = 'BNCI2014009'
-    #dataset_name = 'BNCI2015003'
-    #dataset_name = 'EPFLP300'
 
     datasets = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001']
     for dataset_name in datasets:
         info = dataset_to_file(dataset_name, data_save=True)
         print(info)
-
-
 
     '''
     BNCI2014001

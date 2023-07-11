@@ -5,22 +5,18 @@
 import numpy as np
 import argparse
 import os
-import torch as tr
+import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
-import seaborn as sns
 
-from matplotlib import pyplot as plt
-from sklearn.manifold import TSNE
 from utils import network, loss
-from utils.CsvRecord import CsvRecord
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
-from utils.utils import fix_random_seed, cal_acc_comb, data_loader, cal_bca_comb
+from utils.utils import fix_random_seed, cal_acc_comb, data_loader
 
 import gc
-import torch
+import sys
 
 
 def train_target(args):
@@ -34,17 +30,6 @@ def train_target(args):
     base_network = nn.Sequential(netF, netC)
 
     criterion = nn.CrossEntropyLoss()
-    if args.paradigm == 'ERP':
-        loss_weights = []
-        ar_unique, cnts_class = np.unique(y_src, return_counts=True)
-        print("labels:", ar_unique)
-        print("Counts:", cnts_class)
-        loss_weights.append(1.0)
-        loss_weights.append(cnts_class[0] / cnts_class[1])
-        print(loss_weights)
-        if args.data_env != 'local':
-            loss_weights = torch.Tensor(loss_weights).cuda()
-        criterion = nn.CrossEntropyLoss(weight=loss_weights)
 
     optimizer_f = optim.Adam(netF.parameters(), lr=args.lr)
     optimizer_c = optim.Adam(netC.parameters(), lr=args.lr)
@@ -80,23 +65,23 @@ def train_target(args):
         if iter_num % interval_iter == 0 or iter_num == max_iter:
             base_network.eval()
 
-            if args.paradigm == 'MI':
-                acc_t_te, _ = cal_acc_comb(dset_loaders["Target"], base_network)
-                log_str = 'Task: {}, Iter:{}/{}; Acc = {:.2f}%'.format(args.task_str, int(iter_num // len(dset_loaders["source"])), int(max_iter // len(dset_loaders["source"])), acc_t_te)
-                args.log.record(log_str)
-                print(log_str)
-            elif args.paradigm == 'ERP':
-                acc_t_te, _ = cal_bca_comb(dset_loaders["Target"], base_network)
-                log_str = 'Task: {}, Iter:{}/{}; BCA = {:.2f}%'.format(args.task_str, int(iter_num // len(dset_loaders["source"])), int(max_iter // len(dset_loaders["source"])), acc_t_te)
-                args.log.record(log_str)
-                print(log_str)
+            acc_t_te, _ = cal_acc_comb(dset_loaders["Target"], base_network, args=args)
+            log_str = 'Task: {}, Iter:{}/{}; Acc = {:.2f}%'.format(args.task_str, int(iter_num // len(dset_loaders["source"])), int(max_iter // len(dset_loaders["source"])), acc_t_te)
+            args.log.record(log_str)
+            print(log_str)
 
             base_network.train()
 
+    print('Test Acc = {:.2f}%'.format(acc_t_te))
+
     print('saving model...')
 
-    torch.save(base_network.state_dict(),
-               './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(args.idt) + '_seed' + str(args.SEED) + '.ckpt')
+    if args.align:
+        torch.save(base_network.state_dict(),
+                   './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(args.idt) + '_seed' + str(args.SEED) + '.ckpt')
+    else:
+        torch.save(base_network.state_dict(),
+                   './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(args.idt) + '_seed' + str(args.SEED) + '_noEA' + '.ckpt')
 
     gc.collect()
     if args.data_env != 'local':
@@ -107,64 +92,52 @@ def train_target(args):
 
 if __name__ == '__main__':
 
-    #data_name_list = ['BNCI2015001'] # 'BNCI2014001', 'BNCI2014002', 'BNCI2015001'
-    #data_name_list = ['BNCI2014001-4']
-    #data_name_list = ['BNCI2014008', 'BNCI2014009', 'BNCI2015003']
-    #data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014008', 'BNCI2014009', 'BNCI2015003']
-    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001']
+    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014001-4']
 
     dct = pd.DataFrame(columns=['dataset', 'avg', 'std', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13'])
 
     for data_name in data_name_list:
-        import braindecode.models.shallow_fbcsp
-        if data_name == 'BNCI2014001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 2, 1001, 250, 144, 248 #2440
-        if data_name == 'BNCI2014002': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 14, 15, 2, 2561, 512, 100, 640 #6600
-        if data_name == 'MI1': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 7, 59, 2, 300, 200, 100, 72
-        if data_name == 'BNCI2015001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 12, 13, 2, 2561, 512, 200, 640 #6600
-        if data_name == 'BNCI2014008': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'ERP', 8, 8, 2, 206, 256, 4200, 48
-        if data_name == 'BNCI2014009': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'ERP', 10, 16, 2, 206, 256, 1728, 48
-        if data_name == 'BNCI2015003': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'ERP', 10, 8, 2, 206, 256, 2520, 48
+        # N: number of subjects, chn: number of channels
+        if data_name == 'BNCI2014001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 2, 1001, 250, 144, 248
+        if data_name == 'BNCI2014002': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 14, 15, 2, 2561, 512, 100, 640
+        if data_name == 'BNCI2015001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 12, 13, 2, 2561, 512, 200, 640
         if data_name == 'BNCI2014001-4': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 4, 1001, 250, 288, 248
 
-        args = argparse.Namespace(feature_deep_dim=feature_deep_dim, lr=0.001, trial_num=trial_num,
+        args = argparse.Namespace(feature_deep_dim=feature_deep_dim, trial_num=trial_num,
                                   time_sample_num=time_sample_num, sample_rate=sample_rate,
-                                  N=N, chn=chn, class_num=class_num, smooth=0, paradigm=paradigm, data_name=data_name)
+                                  N=N, chn=chn, class_num=class_num, paradigm=paradigm, data_name=data_name)
 
-        args.data = data_name
         args.method = 'EEGNet'
-        #args.method = 'DNN-ShallowCNN-2015001'
         args.backbone = 'EEGNet'
-        #args.backbone = 'ShallowFBCSPNet_feature'
-        args.feature = False
 
-        import sys
-        align = sys.argv[1]
-        if align == 'True':
-            args.align = True
-        elif align == 'False':
-            args.align = False
+        # whether to use EA
+        args.align = True
 
+        # learning rate
+        args.lr = 0.001
+
+        # train batch size
         args.batch_size = 32
-        if paradigm == 'ERP':
-            args.batch_size = 256
-        args.max_epoch = 100
-        #args.max_epoch = 20
-        args.validation = 'None'
-        args.eval_epoch = args.max_epoch / 10
 
-        device_id = str(sys.argv[2])
-        os.environ["CUDA_VISIBLE_DEVICES"] = device_id
-        args.data_env = 'gpu' if tr.cuda.device_count() != 0 else 'local'
+        # training epochs
+        args.max_epoch = 100
+
+        # GPU device id
+        try:
+            device_id = str(sys.argv[1])
+            os.environ["CUDA_VISIBLE_DEVICES"] = device_id
+            args.data_env = 'gpu' if torch.cuda.device_count() != 0 else 'local'
+        except:
+            args.data_env = 'local'
 
         total_acc = []
 
-        for s in [1, 2, 3, 4, 5]:
-        #for s in [6, 7, 8, 9, 10, 11]:
-        #for s in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
+        # train multiple randomly initialized models
+        for s in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
             args.SEED = s
 
             fix_random_seed(args.SEED)
-            tr.backends.cudnn.deterministic = True
+            torch.backends.cudnn.deterministic = True
 
             args.data = data_name
             print(args.data)
@@ -181,8 +154,8 @@ if __name__ == '__main__':
             sub_acc_all = np.zeros(N)
             for idt in range(N):
                 args.idt = idt
-                source_str = 'Except_S' + str(idt + 1)
-                target_str = 'S' + str(idt + 1)
+                source_str = 'Except_S' + str(idt)
+                target_str = 'S' + str(idt)
                 args.task_str = source_str + '_2_' + target_str
                 info_str = '\n========================== Transfer to ' + target_str + ' =========================='
                 print(info_str)
@@ -224,4 +197,5 @@ if __name__ == '__main__':
 
         dct = dct.append(result_dct, ignore_index=True)
 
+    # save results to csv
     dct.to_csv('./logs/' + str(args.method) + ".csv")
