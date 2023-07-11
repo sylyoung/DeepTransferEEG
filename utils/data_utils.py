@@ -67,7 +67,7 @@ def dataset_to_file(dataset_name, data_save):
         # (5600, 13, 2561) (5600,) 512Hz 12subjects * 2 classes * (200 + 200 + (200 for Subj 8/9/10/11)) trials * (2/3)sessions
 
     if data_save:
-        print('preparing data...')
+        print('preparing ' + str(dataset_name) + ' data...')
         if dataset_name == 'PhysionetMI':
             X, labels, meta = paradigm.get_data(dataset=dataset, subjects=list(np.delete(dataset.subject_list, [87,91,99,103])))
         else:
@@ -83,6 +83,7 @@ def dataset_to_file(dataset_name, data_save):
         np.save('./data/' + dataset_name + '/X', X)
         np.save('./data/' + dataset_name + '/labels', labels)
         meta.to_csv('./data/' + dataset_name + '/meta.csv')
+        print('done!')
     else:
         if isinstance(paradigm, MotorImagery):
             X, labels, meta = paradigm.get_data(dataset=dataset, subjects=[dataset.subject_list[0]], return_epochs=True)
@@ -97,7 +98,6 @@ if __name__ == '__main__':
     datasets = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001']
     for dataset_name in datasets:
         info = dataset_to_file(dataset_name, data_save=True)
-        print(info)
 
     '''
     BNCI2014001

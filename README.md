@@ -1,4 +1,4 @@
-# T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs
+# Transfer Learning Algorithms for EEG-based BCI
 
 Welcome! This is the official implementation of our paper named "T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs".
 
@@ -22,13 +22,17 @@ So to save time for TTA/SFUDA for target subject adaptation, it is better to do 
 
 Run ```sh test.sh``` or ```python ./tl/ttime.py``` to test the T-TIME algorithm.  
 Run any of ```python ./tl/*.py``` for its corresponding results.  
-As an example, T-TIME results can be reproduced using ```python ./tl/ttime.py```  
+For example, T-TIME results can be reproduced using ```python ./tl/ttime.py```  
 Note that ensemble is seperated in ```python ./tl/ttime-ensemble.py``` for the purpose of clarity.  
 For CSP approach, it is not a deep learning approach and is seperated from the others. Run ```python ./feature.py``` for results.
 
 ## Hyperparameters
 
 Most hyperparameters/configurations of approaches/experiments are under the *args* variable in the "main" function of each file, and naming should be self-explanatory.
+
+## Upcoming
+
+This repo will be continually updated and expanded. Feel free to give a star!
 
 ## Contact
 

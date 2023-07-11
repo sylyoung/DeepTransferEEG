@@ -380,7 +380,8 @@ if __name__ == '__main__':
                                   N=N, chn=chn, class_num=class_num, stride=stride, steps=steps, calc_time=calc_time,
                                   paradigm=paradigm, test_batch=test_batch, data_name=data_name, balanced=balanced)
 
-        args.method = 'T-TIME'
+        #args.method = 'T-TIME'
+        args.method = 'T-TIME-Continual'
         args.backbone = 'EEGNet'
 
         # train batch size

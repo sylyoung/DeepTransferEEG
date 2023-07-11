@@ -193,14 +193,6 @@ def data_loader_secondsession(dataset):
         # only use session 1, remove session 2/3
         indices = []
         for i in range(num_subjects):
-            '''
-            if i in [7, 8, 9, 10]:
-                indices.append(np.arange(200) + (400 * 7) + 600 * (i - 7))
-            elif i == 11:
-                indices.append(np.arange(200) + (400 * 7) + 600 * (i - 7))
-            else:
-                indices.append(np.arange(200) + (400 * i))
-            '''
             # use second sessions
             if i in [7, 8, 9, 10]:
                 indices.append(np.arange(200) + (400 * 7) + 600 * (i - 7))
@@ -233,7 +225,7 @@ def data_loader_secondsession(dataset):
 
 
 def read_mi_combine_tar(args):  # no data augment
-    if 'ontinual' in args.method:
+    if 'ontinual' in args.method:  # TODO
         # Continual TTA
         X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader_secondsession(args.data)
     else:
