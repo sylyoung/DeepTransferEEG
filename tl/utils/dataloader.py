@@ -17,13 +17,7 @@ def data_loader(dataset):
     :return: X, y, num_subjects, paradigm, sample_rate
     '''
 
-    if dataset == 'MI1':
-        data = np.load('./data/' + dataset + '/MI1.npz')
-        X = data['data']
-        X = X.reshape(-1, X.shape[2], X.shape[3])
-        y = data['label']
-        y = y.reshape(-1, )
-    elif dataset == 'BNCI2014001-4':
+    if dataset == 'BNCI2014001-4':
         X = np.load('./data/' + 'BNCI2014001' + '/X.npy')
         y = np.load('./data/' + 'BNCI2014001' + '/labels.npy')
     else:
@@ -143,13 +137,7 @@ def data_loader_secondsession(dataset):
     :return: X, y, num_subjects, paradigm, sample_rate
     '''
 
-    if dataset == 'MI1':
-        data = np.load('./data/' + dataset + '/MI1.npz')
-        X = data['data']
-        X = X.reshape(-1, X.shape[2], X.shape[3])
-        y = data['label']
-        y = y.reshape(-1, )
-    elif dataset == 'BNCI2014001-4':
+    if dataset == 'BNCI2014001-4':
         X = np.load('./data/' + 'BNCI2014001' + '/X.npy')
         y = np.load('./data/' + 'BNCI2014001' + '/labels.npy')
     else:
@@ -238,39 +226,21 @@ def data_loader_secondsession(dataset):
         X = X[indices]
         y = y[indices]
 
-    elif dataset == 'MI1':
-        paradigm = 'MI'
-        num_subjects = 7
-        sample_rate = 100
-        ch_num = 59
-    elif dataset == 'BNCI2014008':
-        paradigm = 'ERP'
-        num_subjects = 8
-        sample_rate = 256
-        ch_num = 8
-
-        # time cut
-        X = time_cut(X, cut_percentage=0.8)
-    elif dataset == 'BNCI2014009':
-        paradigm = 'ERP'
-        num_subjects = 10
-        sample_rate = 256
-        ch_num = 16
-    elif dataset == 'BNCI2015003':
-        paradigm = 'ERP'
-        num_subjects = 10
-        sample_rate = 256
-        ch_num = 8
-    elif dataset == 'PhysionetMI':
-        paradigm = 'MI'
-        num_subjects = 105
-        sample_rate = 160
-        ch_num = 64
-
     le = preprocessing.LabelEncoder()
     y = le.fit_transform(y)
     print('data shape:', X.shape, ' labels shape:', y.shape)
     return X, y, num_subjects, paradigm, sample_rate, ch_num
+
+
+def read_mi_combine_tar(args):  # no data augment
+    if 'ontinual' in args.method:
+        # Continual TTA
+        X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader_secondsession(args.data)
+    else:
+        X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(args.data)
+    src_data, src_label, tar_data, tar_label = traintest_split_cross_subject(args.data, X, y, num_subjects, args.idt)
+
+    return src_data, src_label, tar_data, tar_label
 
 
 def data_normalize(fea_de, norm_type):

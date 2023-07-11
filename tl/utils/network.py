@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import torch.nn.utils.weight_norm as weightNorm
 
 from models.EEGNet import EEGNet_feature, EEGNet, EEGNetCNNFusion, EEGNetDouble, EEGNetSiameseFusionFeature
-from models.ShallowConvNet import ShallowConvNet, ShallowConvNet_feature
 from models.FC import FC, FC_xy, FC_cat, FC_cat_xy, FC_xy_batch
 
 # dynamic change the weight of the domain-discriminator

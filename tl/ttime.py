@@ -158,30 +158,31 @@ def TTIME(loader, model, args, balanced=True):
             if args.calc_time:
                 print('sample ', str(i), ', post-inference model update finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
 
-            if i + 1 == args.test_batch:
-                args.pred_thresh = 0.7
-                pl = torch.max(softmax_out, 1)[1]
-                for l in range(args.test_batch):
-                    if pl[l] == 0:
-                        if softmax_out[l][0] > args.pred_thresh:
+            if not balanced:
+                if i + 1 == args.test_batch:
+                    args.pred_thresh = 0.7
+                    pl = torch.max(softmax_out, 1)[1]
+                    for l in range(args.test_batch):
+                        if pl[l] == 0:
+                            if softmax_out[l][0] > args.pred_thresh:
+                                zk_arrs[0] += 1
+                        elif pl[l] == 1:
+                            if softmax_out[l][1] > args.pred_thresh:
+                                zk_arrs[1] += 1
+                        else:
+                            print('ERROR in pseudo labeling!')
+                            sys.exit(0)
+                else:
+                    # update confident prediction ids for current test sample
+                    pl = torch.max(softmax_out, 1)[1]
+                    if pl[-1] == 0:
+                        if softmax_out[-1][0] > args.pred_thresh:
                             zk_arrs[0] += 1
-                    elif pl[l] == 1:
-                        if softmax_out[l][1] > args.pred_thresh:
+                    elif pl[-1] == 1:
+                        if softmax_out[-1][1] > args.pred_thresh:
                             zk_arrs[1] += 1
                     else:
                         print('ERROR in pseudo labeling!')
-                        sys.exit(0)
-            else:
-                # update confident prediction ids for current test sample
-                pl = torch.max(softmax_out, 1)[1]
-                if pl[-1] == 0:
-                    if softmax_out[-1][0] > args.pred_thresh:
-                        zk_arrs[0] += 1
-                elif pl[-1] == 1:
-                    if softmax_out[-1][1] > args.pred_thresh:
-                        zk_arrs[1] += 1
-                else:
-                    print('ERROR in pseudo labeling!')
 
         model.eval()
 
