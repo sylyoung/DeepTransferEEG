@@ -112,7 +112,7 @@ def fix_random_seed(SEED):
 
 
 def binary_classification():
-    method = 'TTA-IM-pred'
+    method = 'T-TIME'
     data_name_list = ['BNCI2014001']
 
     for data_name in data_name_list:
@@ -136,7 +136,7 @@ def binary_classification():
         seed_arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         preds = []
         for SEED in seed_arr:
-            path = './logs/' + str(data_name) + str(method) + '_seed_' + str(SEED) + "_pred.csv"
+            path = './logs/' + str(data_name) + '_'+ str(method) + '_seed_' + str(SEED) + "_pred.csv"
             df = pd.read_csv(path, header=None)
             preds.append(df.to_numpy())
 
