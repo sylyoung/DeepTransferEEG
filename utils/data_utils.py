@@ -61,55 +61,14 @@ def dataset_to_file(dataset_name, data_save):
         dataset = BNCI2014002()
         paradigm = MotorImagery(n_classes=2)
         # (2240, 15, 2561) (2240,) 512Hz 14subjects * 2classes * (50+30)trials * 2sessions(not namely separately)
-    elif dataset_name == 'BNCI2014004':
-        dataset = BNCI2014004()
-        paradigm = MotorImagery(n_classes=2)
-        # (6520, 3, 1126) (6520,) 250Hz 9subjects * 2classes * (?)trials * 5sessions
     elif dataset_name == 'BNCI2015001':
         dataset = BNCI2015001()
         paradigm = MotorImagery(n_classes=2)
         # (5600, 13, 2561) (5600,) 512Hz 12subjects * 2 classes * (200 + 200 + (200 for Subj 8/9/10/11)) trials * (2/3)sessions
-    elif dataset_name == 'PhysionetMI':
-        dataset = PhysionetMI(imagined=True, executed=False)
-        paradigm = MotorImagery(n_classes=2)
-    elif dataset_name == 'BNCI2015004':
-        dataset = BNCI2015004()
-        paradigm = MotorImagery(n_classes=2)
-        # [160, 160, 160, 150 (80+70), 160, 160, 150 (80+70), 160, 160]
-        # (1420, 30, 1793) (1420,) 256Hz 9subjects * 2classes * (80+80/70)trials * 2sessions
-    elif dataset_name == 'BNCI2014008':
-        dataset = BNCI2014008()
-        paradigm = P300()
-        # (33600, 8, 257) (33600,) 256Hz 8subjects 4200 trials * 1session
-    elif dataset_name == 'BNCI2014009':
-        dataset = BNCI2014009()
-        paradigm = P300()
-        # (17280, 16, 206) (17280,) 256Hz 10subjects 1728 trials * 3sessions
-    elif dataset_name == 'BNCI2015003':
-        dataset = BNCI2015003()
-        paradigm = P300()
-        # (25200, 8, 206) (25200,) 256Hz 10subjects 2520 trials * 1session
-    elif dataset_name == 'EPFLP300':
-        dataset = EPFLP300()
-        paradigm = P300()
-        # (25200, 8, 206) (25200,) 256Hz 10subjects 1session
-    elif dataset_name == 'ERN':
-        ch_names = ['Fp1', 'Fp2', 'AF7', 'AF3', 'AF4', 'AF8', 'F7', 'F5', 'F3', 'F1', 'Fz', 'F2', 'F4', 'F6', 'F8',
-                    'FT7', 'FC5', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'FC6', 'FT8', 'T7', 'C5', 'C3', 'C1', 'Cz', 'C2',
-                    'C4', 'C6', 'T8', 'TP7', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'TP8', 'P7', 'P5', 'P3',
-                    'P1', 'Pz', 'P2', 'P4', 'P6', 'P8', 'PO7', 'POz', 'P08', 'O1', 'O2']
-        info = mne.create_info(ch_names=ch_names, sfreq=200, ch_types=['eeg'] * 56)
-        return info
-        # (5440, 56, 260) (5440,) 200Hz 16subjects 1session
-    # SEED (152730, 62, 5*DE*)  (152730,) 200Hz 15subjects 3sessions
 
     if data_save:
         print('preparing data...')
-        # dataset.subject_list[:5] or [dataset.subject_list[0]]
-        # PhysionetMI 87,91,99 with different time_samples; 103 with different num_trials
         if dataset_name == 'PhysionetMI':
-            #print(type(dataset.subject_list[:]))
-            #print(list(type(np.delete(dataset.subject_list, [87,91,99,103])))
             X, labels, meta = paradigm.get_data(dataset=dataset, subjects=list(np.delete(dataset.subject_list, [87,91,99,103])))
         else:
             X, labels, meta = paradigm.get_data(dataset=dataset, subjects=dataset.subject_list[:])
@@ -184,80 +143,4 @@ if __name__ == '__main__':
      projs: []
      sfreq: 160.0 Hz
     >
-    
-    PhysionetMI
-    <Info | 8 non-empty values
-     bads: []
-     ch_names: FC5, FC3, FC1, FCz, FC2, FC4, FC6, C5, C3, C1, Cz, C2, C4, C6, ...
-     chs: 64 EEG
-     custom_ref_applied: False
-     dig: 67 items (3 Cardinal, 64 EEG)
-     highpass: 8.0 Hz
-     lowpass: 32.0 Hz
-     meas_date: 2009-08-12 16:15:00 UTC
-     nchan: 64
-     projs: []
-     sfreq: 160.0 Hz
-    >
-
-    BNCI2015004
-    <Info | 8 non-empty values
-     bads: []
-     ch_names: AFz, F7, F3, Fz, F4, F8, FC3, FCz, FC4, T3, C3, Cz, C4, T4, CP3, ...
-     chs: 30 EEG
-     custom_ref_applied: False
-     dig: 33 items (3 Cardinal, 30 EEG)
-     highpass: 8.0 Hz
-     lowpass: 32.0 Hz
-     meas_date: unspecified
-     nchan: 30
-     projs: []
-     sfreq: 256.0 Hz
-    >
-    
-    BNCI2014008
-    <Info | 8 non-empty values
-     bads: []
-     ch_names: Fz, Cz, Pz, Oz, P3, P4, PO7, PO8
-     chs: 8 EEG
-     custom_ref_applied: False
-     dig: 11 items (3 Cardinal, 8 EEG)
-     highpass: 1.0 Hz
-     lowpass: 24.0 Hz
-     meas_date: unspecified
-     nchan: 8
-     projs: []
-     sfreq: 256.0 Hz
-    >
-    
-    BNCI2014009
-    <Info | 8 non-empty values
-     bads: []
-     ch_names: Fz, Cz, Pz, Oz, P3, P4, PO7, PO8, F3, F4, FCz, C3, C4, CP3, CPz, CP4
-     chs: 16 EEG
-     custom_ref_applied: False
-     dig: 19 items (3 Cardinal, 16 EEG)
-     highpass: 1.0 Hz
-     lowpass: 24.0 Hz
-     meas_date: unspecified
-     nchan: 16
-     projs: []
-     sfreq: 256.0 Hz
-    >
-    
-    BNCI2015003
-    <Info | 8 non-empty values
-     bads: []
-     ch_names: Fz, Cz, P3, Pz, P4, PO7, Oz, PO8
-     chs: 8 EEG
-     custom_ref_applied: False
-     dig: 11 items (3 Cardinal, 8 EEG)
-     highpass: 1.0 Hz
-     lowpass: 24.0 Hz
-     meas_date: unspecified
-     nchan: 8
-     projs: []
-     sfreq: 256.0 Hz
-    >
-
     '''

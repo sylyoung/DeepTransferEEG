@@ -10,7 +10,7 @@ Install Conda dependencies based on  `environment.yml` file.
 
 #### 2. Download Datasets
 
-Download datasets used for experiments running ```python ./utils/data_utils.py```
+Run ```sh prepare_data.sh``` or ```python ./utils/data_utils.py``` to download datasets used for experiments. 
 
 #### (Optional) 3. Training Source Subject Models
 
