@@ -4,11 +4,6 @@ Welcome! This is the official implementation of our paper named "T-TIME: Test-Ti
 
 ## Steps for reproduction of results in paper:
 
-1. **Install Dependencies**
-2. **Download Datasets** 
-3. **(Optional) Train Source Subject Models**
-4. **Conduct Transfer Learning on Target Subject**
-
 #### 1. Install Dependencies
 
 Install Conda dependencies based on  `environment.yml` file.
