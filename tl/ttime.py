@@ -27,7 +27,7 @@ import time
 def TTIME(loader, model, args, balanced=True):
     # "T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs"
     # IEEE Transactions on Biomedical Engineering
-    # Note that the ensemble experiment is separately implemented in ttime-ensemble.py, using recorded test prediction.
+    # Note that the ensemble experiment is separately implemented in ttime_ensemble.py, using recorded test prediction.
 
     if balanced == False and args.data_name == 'BNCI2014001-4':
         print('ERROR, imbalanced multi-class not implemented')
