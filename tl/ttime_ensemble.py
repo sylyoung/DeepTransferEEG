@@ -12,12 +12,6 @@ from sklearn import preprocessing
 from utils.dataloader import data_loader
 
 
-def time_cut(data, cut_percentage):
-    # Time Cutting: cut at a certain percentage of the time. data: (..., ..., time_samples)
-    data = data[:, :, :int(data.shape[2] * cut_percentage)]
-    return data
-
-
 def convert_label(labels, axis, threshold, minus1=False):
     if minus1:
         # Converting labels to -1 or 1, based on a certain threshold

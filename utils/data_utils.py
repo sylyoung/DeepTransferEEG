@@ -2,16 +2,10 @@ import os
 import sys
 
 import numpy as np
-import scipy.io as sio
 import moabb
-import mne
-import pickle
 
 from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2014008, BNCI2014009, BNCI2015003, BNCI2015004, EPFLP300, BNCI2014004, BNCI2015001, PhysionetMI
 from moabb.paradigms import MotorImagery, P300
-from scipy.stats import differential_entropy
-from scipy.signal import stft
-from pykalman import KalmanFilter
 
 
 try:
