@@ -124,7 +124,11 @@ class CoTTA(nn.Module):
             for nm, m in self.model.named_modules():
                 for npp, p in m.named_parameters():
                     if npp in ['weight', 'bias'] and p.requires_grad:
-                        mask = (torch.rand(p.shape) < self.rst).float().cuda()
+                        mask = (torch.rand(p.shape) < self.rst).float()
+                        try:
+                            mask = mask.cuda()
+                        except:
+                            mask = mask.cpu()
                         with torch.no_grad():
                             p.data = self.model_state[f"{nm}.{npp}"] * mask + p * (1. - mask)
         return outputs_ema

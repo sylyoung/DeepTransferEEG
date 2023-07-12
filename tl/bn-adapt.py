@@ -90,12 +90,8 @@ def BN_adapt(loader, model, args, balanced=True):
         labels = labels.float().cpu()
         _, predict = torch.max(outputs, 1)
 
-        if balanced:
-            y_pred.append(softmax_out.detach().cpu().numpy())
-            y_true.append(labels.item())
-        else:
-            y_pred.append(softmax_out.detach().cpu().numpy())
-            y_true.append(labels.item())
+        y_pred.append(softmax_out.detach().cpu().numpy())
+        y_true.append(labels.item())
 
         #################### Phase 2: target model update ####################
         model.train()

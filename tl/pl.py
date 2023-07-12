@@ -13,7 +13,7 @@ import csv
 from utils import network, loss
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
-from utils.utils import fix_random_seed, cal_acc_comb, data_loader, cal_auc_comb
+from utils.utils import fix_random_seed, cal_acc_comb, data_loader, cal_auc_comb, cal_score_online
 from utils.alg_utils import EA, EA_online
 from scipy.linalg import fractional_matrix_power
 from utils.loss import Entropy
@@ -28,7 +28,6 @@ def PL(loader, model, args, balanced=True):
 
     y_true = []
     y_pred = []
-    results = []
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -81,17 +80,8 @@ def PL(loader, model, args, balanced=True):
         _, predict = torch.max(outputs, 1)
         pred = torch.squeeze(predict).float()
 
-        if balanced:
-            y_pred.append(softmax_out.detach().cpu().numpy())
-            y_true.append(labels.item())
-        else:
-            y_pred.append(softmax_out.detach().cpu().numpy())
-            y_true.append(labels.item())
-
-        if pred.item() == labels.item():
-            results.append(1)
-        else:
-            results.append(0)
+        y_pred.append(softmax_out.detach().cpu().numpy())
+        y_true.append(labels.item())
 
         #################### Phase 2: target model update ####################
         model.train()
@@ -132,7 +122,10 @@ def PL(loader, model, args, balanced=True):
         _, predict = torch.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
         pred = torch.squeeze(predict).float()
         score = accuracy_score(y_true, pred)
-        y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]  # binary
+        if args.data_name == 'BNCI2014001-4':
+            y_pred = np.array(y_pred).reshape(-1, )  # multiclass
+        else:
+            y_pred = np.array(y_pred).reshape(-1, args.class_num)[:, 1]  # binary
     else:
         predict = torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num)
         y_pred = np.array(predict).reshape(-1, args.class_num)[:, 1]  # binary
@@ -227,6 +220,14 @@ def train_target(args):
 
     base_network.eval()
 
+    score = cal_score_online(dset_loaders["Target-Online"], base_network, args=args)
+    if args.balanced:
+        log_str = 'Task: {}, Online IEA Acc = {:.2f}%'.format(args.task_str, score)
+    else:
+        log_str = 'Task: {}, Online IEA AUC = {:.2f}%'.format(args.task_str, score)
+    args.log.record(log_str)
+    print(log_str)
+
     print('executing TTA...')
 
     if args.balanced:
@@ -252,7 +253,7 @@ def train_target(args):
 
 if __name__ == '__main__':
 
-    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001']
+    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014001-4']
 
     dct = pd.DataFrame(columns=['dataset', 'avg', 'std', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13'])
 

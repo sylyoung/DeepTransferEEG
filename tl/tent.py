@@ -17,6 +17,7 @@ from utils.utils import fix_random_seed, cal_acc_comb, data_loader, cal_auc_comb
 from utils.alg_utils import EA, EA_online
 from scipy.linalg import fractional_matrix_power
 from utils.loss import Entropy
+from models.tent import configure_model, collect_params, Tent
 from sklearn.metrics import roc_auc_score, accuracy_score
 
 import gc
@@ -24,7 +25,8 @@ import sys
 import time
 
 
-def Tent(loader, model, args, balanced=True):
+def Tent_func(loader, model, args, balanced=True):
+    # Tent
 
     if balanced == False and args.data_name == 'BNCI2014001-4':
         print('ERROR, imbalanced multi-class not implemented')
@@ -82,7 +84,35 @@ def Tent(loader, model, args, balanced=True):
         else:
             sample_test = torch.from_numpy(sample_test).to(torch.float32)
 
-        _, outputs = model(sample_test)
+        if (i + 1) >= args.test_batch:
+            if args.stride != 1:
+                print('must have stride 1')
+                sys.exit(1)
+            else:
+                if (i + 1) == args.test_batch:
+                    # Tent mode initialize
+                    model = configure_model(model)
+                    params, param_names = collect_params(model)
+                    optimizer = torch.optim.Adam(params, lr=args.lr)
+                    tented_model = Tent(model, optimizer)
+
+                if args.align:
+                    batch_test = np.copy(data_cum[i - args.test_batch + 1:i + 1])
+                    # transform test batch
+                    batch_test = np.dot(sqrtRefEA, batch_test)
+                    batch_test = np.transpose(batch_test, (1, 2, 0, 3))
+                else:
+                    batch_test = data_cum[i - args.test_batch + 1:i + 1].numpy()
+                    batch_test = batch_test.reshape(args.test_batch, 1, batch_test.shape[2], batch_test.shape[3])
+
+                if args.data_env != 'local':
+                    batch_test = torch.from_numpy(batch_test).to(torch.float32).cuda()
+                else:
+                    batch_test = torch.from_numpy(batch_test).to(torch.float32)
+
+                outputs = tented_model(batch_test)[-1].reshape(1, -1)
+        else:
+            _, outputs = model(sample_test)
 
         softmax_out = nn.Softmax(dim=1)(outputs)
 
@@ -90,50 +120,8 @@ def Tent(loader, model, args, balanced=True):
         labels = labels.float().cpu()
         _, predict = torch.max(outputs, 1)
 
-        if balanced:
-            y_pred.append(softmax_out.detach().cpu().numpy())
-            y_true.append(labels.item())
-        else:
-            y_pred.append(softmax_out.detach().cpu().numpy())
-            y_true.append(labels.item())
-
-        #################### Phase 2: target model update ####################
-        model.train()
-        # sliding batch
-        if (i + 1) >= args.test_batch and (i + 1) % args.stride == 0:
-            if args.align:
-                batch_test = np.copy(data_cum[i - args.test_batch + 1:i + 1])
-                # transform test batch
-                batch_test = np.dot(sqrtRefEA, batch_test)
-                batch_test = np.transpose(batch_test, (1, 2, 0, 3))
-            else:
-                batch_test = data_cum[i - args.test_batch + 1:i + 1].numpy()
-                batch_test = batch_test.reshape(args.test_batch, 1, batch_test.shape[2], batch_test.shape[3])
-
-            if args.data_env != 'local':
-                batch_test = torch.from_numpy(batch_test).to(torch.float32).cuda()
-            else:
-                batch_test = torch.from_numpy(batch_test).to(torch.float32)
-
-            start_time = time.time()
-            for step in range(args.steps):
-
-                model[0].block1[2].train()
-                model[0].block1[4].train()
-                model[0].block2[3].train()
-
-                # forward pass for model BN update
-                _, outputs = model(batch_test)
-
-                model[0].block1[2].eval()
-                model[0].block1[4].eval()
-                model[0].block2[3].eval()
-
-            TTA_time = time.time()
-            if args.calc_time:
-                print('sample ', str(i), ', post-inference model update finished in ms:', np.round((TTA_time - start_time) * 1000, 3))
-
-        model.eval()
+        y_pred.append(softmax_out.detach().cpu().numpy())
+        y_true.append(labels.item())
 
     if balanced:
         _, predict = torch.max(torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num), 1)
@@ -147,7 +135,6 @@ def Tent(loader, model, args, balanced=True):
         predict = torch.from_numpy(np.array(y_pred)).to(torch.float32).reshape(-1, args.class_num)
         y_pred = np.array(predict).reshape(-1, args.class_num)[:, 1]  # binary
         score = roc_auc_score(y_true, y_pred)
-
     return score * 100, y_pred
 
 
@@ -239,10 +226,10 @@ def train_target(args):
     print('executing TTA...')
 
     if args.balanced:
-        acc_t_te, y_pred = Tent(dset_loaders["Target-Online"], base_network, args=args, balanced=True)
+        acc_t_te, y_pred = Tent_func(dset_loaders["Target-Online"], base_network, args=args, balanced=True)
         log_str = 'Task: {}, TTA Acc = {:.2f}%'.format(args.task_str, acc_t_te)
     else:
-        acc_t_te, y_pred = Tent(dset_loaders["Target-Online-Imbalanced"], base_network, args=args, balanced=False)
+        acc_t_te, y_pred = Tent_func(dset_loaders["Target-Online-Imbalanced"], base_network, args=args, balanced=False)
         log_str = 'Task: {}, TTA AUC = {:.2f}%'.format(args.task_str, acc_t_te)
     args.log.record(log_str)
     print(log_str)
