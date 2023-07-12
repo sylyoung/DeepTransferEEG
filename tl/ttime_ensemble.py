@@ -14,7 +14,6 @@ except:
     from tl.utils.dataloader import data_loader
 
 
-
 def convert_label(labels, axis, threshold, minus1=False):
     if minus1:
         # Converting labels to -1 or 1, based on a certain threshold
@@ -83,7 +82,7 @@ def SML_soft(preds):
     return pred
 
 
-def SML_soft_multiclass(preds, class_num):
+def SML_soft_multiclass(preds):
     """
     Parameters
     ----------
@@ -96,6 +95,7 @@ def SML_soft_multiclass(preds, class_num):
         data of shape (num_test_samples)
     """
     predictions = []
+    class_num = preds.shape[-1]
     for i in range(class_num):
         soft = torch.from_numpy(preds[:, :, i]).to(torch.float32)
         out = torch.mm(soft, soft.T)
@@ -376,7 +376,7 @@ def multiclass_classification():
                             curr_pred = np.argmax(ens_pred, axis=-1)
                         else:
                             curr_table = pred[ens_ids, :sample + 1, :]
-                            curr_pred = SML_soft_multiclass(curr_table, class_num)[-1]
+                            curr_pred = SML_soft_multiclass(curr_table)[-1]
                         ens_prediction.append(curr_pred)
                     ens_score = accuracy_score(true, ens_prediction)
                     seed_acc.append(ens_score)
