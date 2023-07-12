@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023/07/07
 # @Author  : Siyang Li
-# @File    : ttime-ensemble.py
+# @File    : ttime_ensemble.py
 import numpy as np
 import random
 import pandas as pd
 import torch as tr
 import torch.utils.data
 from sklearn.metrics import balanced_accuracy_score, accuracy_score
-from sklearn import preprocessing
-from utils.dataloader import data_loader
+try:
+    from utils.dataloader import data_loader
+except:
+    from tl.utils.dataloader import data_loader
+
 
 
 def convert_label(labels, axis, threshold, minus1=False):
@@ -34,6 +37,17 @@ def reverse_label(labels):
 
 
 def SML(preds):
+    """
+    Parameters
+    ----------
+    preds : numpy array
+        data of shape (num_models, num_test_samples)
+
+    Returns
+    ----------
+    pred : numpy array
+        data of shape (num_test_samples)
+    """
     preds = convert_label(preds, 1, 0.5)
     hard = torch.from_numpy(preds).to(torch.float32)
     out = torch.mm(hard, hard.T)
@@ -47,6 +61,17 @@ def SML(preds):
 
 
 def SML_soft(preds):
+    """
+    Parameters
+    ----------
+    preds : numpy array
+        data of shape (num_models, num_test_samples)
+
+    Returns
+    ----------
+    pred : numpy array
+        data of shape (num_test_samples)
+    """
     soft = torch.from_numpy(preds).to(torch.float32)
     out = torch.mm(soft, soft.T)
     w, v = np.linalg.eig(out)
@@ -59,6 +84,17 @@ def SML_soft(preds):
 
 
 def SML_soft_multiclass(preds, class_num):
+    """
+    Parameters
+    ----------
+    preds : numpy array
+        data of shape (num_models, num_test_samples, num_classes)
+
+    Returns
+    ----------
+    pred : numpy array
+        data of shape (num_test_samples)
+    """
     predictions = []
     for i in range(class_num):
         soft = torch.from_numpy(preds[:, :, i]).to(torch.float32)
@@ -148,7 +184,7 @@ def binary_classification():
 
             for subj in range(num_subjects):
 
-                pred = preds[:, subj, :]
+                pred = preds[:, subj, :]  # (num_models, num_test_samples)
                 true = y[np.arange(trial_num).astype(int) + trial_num * subj]
                 test_trial_num = trial_num
 

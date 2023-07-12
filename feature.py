@@ -42,12 +42,9 @@ def data_loader(dataset):
     '''
     mne.set_log_level('warning')
 
-    if dataset == 'MI1':
-        data = np.load('./data/' + dataset + '/MI1.npz')
-        X = data['data']
-        X = X.reshape(-1, X.shape[2], X.shape[3])
-        y = data['label']
-        y = y.reshape(-1, )
+    if dataset == 'BNCI2014001-4':
+        X = np.load('./data/' + 'BNCI2014001' + '/X.npy')
+        y = np.load('./data/' + 'BNCI2014001' + '/labels.npy')
     else:
         X = np.load('./data/' + dataset + '/X.npy')
         y = np.load('./data/' + dataset + '/labels.npy')
@@ -107,6 +104,19 @@ def data_loader(dataset):
                 indices.append(np.arange(200) + (400 * i))
         indices = np.concatenate(indices, axis=0)
 
+        X = X[indices]
+        y = y[indices]
+    elif dataset == 'BNCI2014001-4':
+        paradigm = 'MI'
+        num_subjects = 9
+        sample_rate = 250
+        ch_num = 22
+
+        # only use session T, remove session E
+        indices = []
+        for i in range(num_subjects):
+            indices.append(np.arange(288) + (576 * i))
+        indices = np.concatenate(indices, axis=0)
         X = X[indices]
         y = y[indices]
 
@@ -296,12 +306,6 @@ if __name__ == '__main__':
 
     for dataset in dataset_arr:
 
-        if not os.path.exists('./data/' + dataset + '/'):
-            info = dataset_to_file(dataset, data_save=True)
-            print(info)
-        else:
-            info = None
-
         for approach in ['LDA']:
             # use EA
             align = True
@@ -310,5 +314,5 @@ if __name__ == '__main__':
 
             # info = dataset_to_file(dataset, data_save=False)
 
-            ml_cross(dataset, info, align, approach, cuda_device_id)
+            ml_cross(dataset, None, align, approach, cuda_device_id)
             #ml_within(dataset, info, align, approach, cuda_device_id)

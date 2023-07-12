@@ -95,35 +95,6 @@ def data_loader(dataset):
         X = X[indices]
         y = y[indices]
 
-    elif dataset == 'MI1':
-        paradigm = 'MI'
-        num_subjects = 7
-        sample_rate = 100
-        ch_num = 59
-    elif dataset == 'BNCI2014008':
-        paradigm = 'ERP'
-        num_subjects = 8
-        sample_rate = 256
-        ch_num = 8
-
-        # time cut
-        X = time_cut(X, cut_percentage=0.8)
-    elif dataset == 'BNCI2014009':
-        paradigm = 'ERP'
-        num_subjects = 10
-        sample_rate = 256
-        ch_num = 16
-    elif dataset == 'BNCI2015003':
-        paradigm = 'ERP'
-        num_subjects = 10
-        sample_rate = 256
-        ch_num = 8
-    elif dataset == 'PhysionetMI':
-        paradigm = 'MI'
-        num_subjects = 105
-        sample_rate = 160
-        ch_num = 64
-
     le = preprocessing.LabelEncoder()
     y = le.fit_transform(y)
     print('data shape:', X.shape, ' labels shape:', y.shape)
