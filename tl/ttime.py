@@ -203,6 +203,10 @@ def TTIME(loader, model, args, balanced=True):
 
 
 def train_target(args):
+    if not args.align:
+        extra_string = '_noEA'
+    else:
+        extra_string = ''
     X_src, y_src, X_tar, y_tar = read_mi_combine_tar(args)
     print('X_src, y_src, X_tar, y_tar:', X_src.shape, y_src.shape, X_tar.shape, y_tar.shape)
     dset_loaders = data_loader(X_src, y_src, X_tar, y_tar, args)
@@ -216,19 +220,10 @@ def train_target(args):
         if args.align:
             if args.data_env != 'local':
                 base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
-                                                        '_S' + str(args.idt) + '_seed' + str(args.SEED) + '.ckpt'))
+                    '_S' + str(args.idt) + '_seed' + str(args.SEED) + extra_string + '.ckpt'))
             else:
                 base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
-                                                        '_S' + str(args.idt) + '_seed' + str(args.SEED) + '.ckpt',
-                                                        map_location=torch.device('cpu')))
-        else:
-            if args.data_env != 'local':
-                base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
-                                                        '_S' + str(args.idt) + '_seed' + str(args.SEED) + '_noEA' + '.ckpt'))
-            else:
-                base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
-                                                        '_S' + str(args.idt) + '_seed' + str(args.SEED) + '_noEA' + '.ckpt',
-                                                        map_location=torch.device('cpu')))
+                    '_S' + str(args.idt) + '_seed' + str(args.SEED) + extra_string + '.ckpt', map_location=torch.device('cpu')))
     else:
         criterion = nn.CrossEntropyLoss()
         optimizer_f = optim.Adam(netF.parameters(), lr=args.lr)
@@ -277,14 +272,10 @@ def train_target(args):
                 base_network.train()
 
         print('saving model...')
-        if args.align:
-            torch.save(base_network.state_dict(),
-                       './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(
-                           args.idt) + '_seed' + str(args.SEED) + '.ckpt')
-        else:
-            torch.save(base_network.state_dict(),
-                       './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(
-                           args.idt) + '_seed' + str(args.SEED) + '_noEA' + '.ckpt')
+        torch.save(base_network.state_dict(),
+                   './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(
+                       args.idt) + '_seed' + str(args.SEED) + extra_string + '.ckpt')
+
 
     base_network.eval()
 
@@ -309,14 +300,15 @@ def train_target(args):
 
     if args.balanced:
         print('Test Acc = {:.2f}%'.format(acc_t_te))
+
     else:
         print('Test AUC = {:.2f}%'.format(acc_t_te))
 
-    torch.save(base_network.state_dict(),
-               './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(args.idt) + '_seed' + str(args.SEED) + '_balanced_' + str(args.balanced) + '_adapted' + '.ckpt')
+    torch.save(base_network.state_dict(), './runs/' + str(args.data_name) + '/' + str(args.backbone) + '_S' + str(args.idt) + '_seed' + str(
+        args.SEED) + extra_string + '_adapted' + '.ckpt')
 
     # save the predictions for ensemble
-    with open('./logs/' + str(args.data_name) + '_' + str(args.method) + '_seed_' + str(args.SEED) + "_pred.csv", 'a') as f:
+    with open('./logs/' + str(args.data_name) + '_' + str(args.method) + '_seed_' + str(args.SEED) +"_pred.csv", 'a') as f:
         writer = csv.writer(f)
         writer.writerow(y_pred)
 
@@ -380,8 +372,7 @@ if __name__ == '__main__':
                                   N=N, chn=chn, class_num=class_num, stride=stride, steps=steps, calc_time=calc_time,
                                   paradigm=paradigm, test_batch=test_batch, data_name=data_name, balanced=balanced)
 
-        #args.method = 'T-TIME'
-        args.method = 'T-TIME-Continual'
+        args.method = 'T-TIME'
         args.backbone = 'EEGNet'
 
         # train batch size

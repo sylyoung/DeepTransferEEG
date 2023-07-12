@@ -156,7 +156,6 @@ def data_loader_secondsession(dataset):
         # only use session T, remove session E
         indices = []
         for i in range(num_subjects):
-            #indices.append(np.arange(288) + (576 * i))
             indices.append(np.arange(288) + (576 * i) + 288) # use second sessions
         indices = np.concatenate(indices, axis=0)
         X = X[indices]
@@ -241,22 +240,3 @@ def data_normalize(fea_de, norm_type):
         fea_de = zscore.fit_transform(fea_de)
 
     return fea_de
-
-
-def obtain_train_val_source(y_array, trial_ins_num, val_type):
-    y_array = y_array.numpy()
-    ins_num_all = len(y_array)
-    src_idx = range(ins_num_all)
-
-    if val_type == 'random':
-        # 随机打乱会导致结果偏高，不管是MI还是SEED数据集
-        num_train = int(0.9 * len(src_idx))
-        id_train, id_val = tr.utils.data.random_split(src_idx, [num_train, len(src_idx) - num_train])
-
-    if val_type == 'last':
-        # 按顺序划分，一般情况来说没问题，但是如果源数据类别是按顺序排的，会有问题
-        num_train = int(0.9 * trial_ins_num)
-        id_train = np.array(src_idx).reshape(-1, trial_ins_num)[:, :num_train].reshape(1, -1).flatten()
-        id_val = np.array(src_idx).reshape(-1, trial_ins_num)[:, num_train:].reshape(1, -1).flatten()
-
-    return id_train, id_val

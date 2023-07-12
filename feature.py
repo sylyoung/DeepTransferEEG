@@ -1,31 +1,23 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2023/07/07
+# @Author  : Siyang Li
+# @File    : feature.py
+import mne
+import numpy as np
+import torch
+from sklearn import preprocessing
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.ensemble import AdaBoostClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from xgboost import XGBClassifier
+
 import random
 import sys
 import os
 
-import mne
-import numpy as np
-import torch
-from imblearn.over_sampling import SMOTE, RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler
-from matplotlib import pyplot as plt
-from mne.decoding import CSP
-from mne.preprocessing import Xdawn
-from sklearn import preprocessing
-from sklearn.decomposition import PCA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.ensemble import AdaBoostClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score
-from sklearn.metrics.pairwise import cosine_similarity
-from torch.utils.data import TensorDataset, DataLoader
-from xgboost import XGBClassifier
-from sklearn.cluster import KMeans
-from torchsummary import summary
-
 from utils.alg_utils import EA
-from utils.data_utils import traintest_split_cross_subject, dataset_to_file, time_cut
-from models.EEGNet import EEGNet_feature, EEGNet, EEGNetxy
-from models.FC import FC
+from utils.data_utils import traintest_split_cross_subject, dataset_to_file
 
 
 def apply_zscore(train_x, test_x, num_subjects):
@@ -208,24 +200,54 @@ def ml_classifier(approach, output_probability, train_x, train_y, test_x, return
         return pred
 
 
-def eeg_ml(dataset, info, align, approach, cuda_device_id):
+def ml_cross(dataset, info, align, approach, cuda_device_id):
     X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(dataset)
     print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
 
     print('sample rate:', sample_rate)
 
-    unaligned = X
     if align:
         X = data_alignment(X, num_subjects)
 
     scores_arr = []
 
     for i in range(num_subjects):
-        # train_x, train_y, test_x, test_y = traintest_split_within_subject(dataset, X, y, num_subjects, i, 0.8, True)
-
         train_x, train_y, test_x, test_y = traintest_split_cross_subject(dataset, X, y, num_subjects, i)
+        print('train_x, train_y, test_x, test_y.shape', train_x.shape, train_y.shape, test_x.shape, test_y.shape)
+
+        if paradigm == 'MI':
+            # CSP
+            csp = mne.decoding.CSP(n_components=10)
+            train_x_csp = csp.fit_transform(train_x, train_y)
+            test_x_csp = csp.transform(test_x)
+
+            # classifier
+            pred, model = ml_classifier(approach, False, train_x_csp, train_y, test_x_csp, return_model=True)
+            score = np.round(accuracy_score(test_y, pred), 5)
+
+        scores_arr.append(score)
+    print('#' * 30)
+    for i in range(len(scores_arr)):
+        scores_arr[i] = np.round(scores_arr[i] * 100)
+    print('sbj scores', scores_arr)
+    print('avg', np.round(np.average(scores_arr), 5))
+
+    return scores_arr
 
 
+def ml_within(dataset, info, align, approach, cuda_device_id):
+    X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(dataset)
+    print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
+
+    print('sample rate:', sample_rate)
+
+    if align:
+        X = data_alignment(X, num_subjects)
+
+    scores_arr = []
+
+    for i in range(num_subjects):
+        train_x, train_y, test_x, test_y = traintest_split_within_subject(dataset, X, y, num_subjects, i, 0.5, True)
         print('train_x, train_y, test_x, test_y.shape', train_x.shape, train_y.shape, test_x.shape, test_y.shape)
 
         if paradigm == 'MI':
@@ -288,4 +310,5 @@ if __name__ == '__main__':
 
             # info = dataset_to_file(dataset, data_save=False)
 
-            eeg_ml(dataset, info, align, approach, cuda_device_id)
+            #ml_cross(dataset, info, align, approach, cuda_device_id)
+            ml_within(dataset, info, align, approach, cuda_device_id)
