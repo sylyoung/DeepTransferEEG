@@ -310,5 +310,5 @@ if __name__ == '__main__':
 
             # info = dataset_to_file(dataset, data_save=False)
 
-            #ml_cross(dataset, info, align, approach, cuda_device_id)
-            ml_within(dataset, info, align, approach, cuda_device_id)
+            ml_cross(dataset, info, align, approach, cuda_device_id)
+            #ml_within(dataset, info, align, approach, cuda_device_id)

@@ -14,6 +14,7 @@ Run ```sh prepare_data.sh``` or ```python ./utils/data_utils.py``` to download d
 
 #### (Optional) 3. Training Source Subject Models
 
+We have provided the source models (baseline source-combined EA+EEGNet) under ./runs, but feel free to train them from scratch.  
 Run ```sh train.sh``` or ```python ./tl/dnn.py``` to train the source models.  
 Note that such source models serve as EEGNet baselines, and are also used in SFUDA and TTA approaches as the initializations.  
 So to save time for TTA/SFUDA for target subject adaptation, it is better to do this step first.  

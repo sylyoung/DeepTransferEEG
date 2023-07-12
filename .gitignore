@@ -129,6 +129,8 @@ dmypy.json
 .pyre/
 
 .idea
+logs/
+runs/
 backup/
 data/
 multi-source.py
