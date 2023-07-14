@@ -24,11 +24,7 @@ def dataset_to_file(dataset_name, data_save):
 
     if data_save:
         print('preparing ' + str(dataset_name) + ' data...')
-        if dataset_name == 'PhysionetMI':
-            X, labels, meta = paradigm.get_data(dataset=dataset,
-                                                subjects=list(np.delete(dataset.subject_list, [87, 91, 99, 103])))
-        else:
-            X, labels, meta = paradigm.get_data(dataset=dataset, subjects=dataset.subject_list[:])
+        X, labels, meta = paradigm.get_data(dataset=dataset, subjects=dataset.subject_list[:])
         ar_unique, cnts = np.unique(labels, return_counts=True)
         print("labels:", ar_unique)
         print("Counts:", cnts)
