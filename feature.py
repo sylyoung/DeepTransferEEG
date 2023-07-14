@@ -35,7 +35,7 @@ def apply_zscore(train_x, test_x, num_subjects):
     return train_x, test_x
 
 
-def data_loader(dataset):
+def data_process(dataset):
     '''
     :param dataset: str, dataset name
     :return: X, y, num_subjects, paradigm, sample_rate
@@ -211,7 +211,7 @@ def ml_classifier(approach, output_probability, train_x, train_y, test_x, return
 
 
 def ml_cross(dataset, info, align, approach, cuda_device_id):
-    X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(dataset)
+    X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(dataset)
     print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
 
     print('sample rate:', sample_rate)
@@ -246,7 +246,7 @@ def ml_cross(dataset, info, align, approach, cuda_device_id):
 
 
 def ml_within(dataset, info, align, approach, cuda_device_id):
-    X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(dataset)
+    X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(dataset)
     print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
 
     print('sample rate:', sample_rate)

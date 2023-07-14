@@ -7,7 +7,7 @@ import numpy as np
 from sklearn import preprocessing
 from utils.data_utils import traintest_split_cross_subject, traintest_split_domain_classifier, traintest_split_multisource
 
-def data_loader(dataset):
+def data_process(dataset):
     '''
 
     :param dataset: str, dataset name
@@ -196,7 +196,7 @@ def read_mi_combine_tar(args):
         # Continual TTA
         X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader_secondsession(args.data)
     else:
-        X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(args.data)
+        X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(args.data)
 
     src_data, src_label, tar_data, tar_label = traintest_split_cross_subject(args.data, X, y, num_subjects, args.idt)
 
@@ -205,7 +205,7 @@ def read_mi_combine_tar(args):
 
 def read_mi_combine_split(args):
 
-    X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(args.data)
+    X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(args.data)
 
     src_data, src_label, tar_data, tar_label = traintest_split_domain_classifier(args.data, X, y, num_subjects, args.ratio)
 

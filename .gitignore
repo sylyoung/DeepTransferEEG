@@ -133,6 +133,6 @@ logs/
 runs/
 backup/
 data/
-./multi_source.py
-./tl/dnn_multisource.py
-./tl/domain_classifier.py
+multi_source.py
+dnn_multisource.py
+domain_classifier.py
