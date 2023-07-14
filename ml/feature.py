@@ -17,7 +17,7 @@ import sys
 import os
 
 from utils.alg_utils import EA
-from utils.data_utils import traintest_split_cross_subject, dataset_to_file
+from utils.data_utils import traintest_split_cross_subject
 
 
 def apply_zscore(train_x, test_x, num_subjects):
