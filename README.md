@@ -15,10 +15,6 @@ To download datasets, run
 ```sh 
 sh prepare_data.sh
 ```   
-or   
-```sh
-python ./utils/data_utils.py
-```
 
 #### (Optional) 3. Training Source Subject Models
 

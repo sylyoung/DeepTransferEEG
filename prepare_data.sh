@@ -1,1 +1,1 @@
-python ./utils/data_utils.py
+python ./download_data.py
