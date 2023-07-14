@@ -133,4 +133,6 @@ logs/
 runs/
 backup/
 data/
-multisource
+multi_source
+dnn_multisource
+domain_classifier
