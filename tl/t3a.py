@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
-from utils import network, loss
+from utils.network import backbone_net
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import fix_random_seed, cal_acc_comb, data_loader, cal_auc_comb, cal_score_online
@@ -17,7 +17,7 @@ from utils.alg_utils import EA, EA_online
 from scipy.linalg import fractional_matrix_power
 from sklearn.metrics import roc_auc_score, accuracy_score
 from utils.loss import Entropy
-from models.sam import SAM
+
 
 import gc
 import sys
@@ -138,7 +138,7 @@ def train_target(args):
     print('X_src, y_src, X_tar, y_tar:', X_src.shape, y_src.shape, X_tar.shape, y_tar.shape)
     dset_loaders = data_loader(X_src, y_src, X_tar, y_tar, args)
 
-    netF, netC = network.backbone_net(args, return_type='xy')
+    netF, netC = backbone_net(args, return_type='xy')
     if args.data_env != 'local':
         netF, netC = netF.cuda(), netC.cuda()
     base_network = nn.Sequential(netF, netC)

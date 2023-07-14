@@ -210,7 +210,7 @@ def ml_classifier(approach, output_probability, train_x, train_y, test_x, return
         return pred
 
 
-def ml_cross(dataset, info, align, approach, cuda_device_id):
+def ml_cross(dataset, info, align, approach):
     X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(dataset)
     print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
 
@@ -282,19 +282,6 @@ def ml_within(dataset, info, align, approach, cuda_device_id):
 
 if __name__ == '__main__':
 
-    # cuda_device_id as args[1]
-    if len(sys.argv) > 1:
-        cuda_device_id = str(sys.argv[1])
-    else:
-        cuda_device_id = -1
-    try:
-        device = torch.device('cuda:' + cuda_device_id)
-        os.environ["CUDA_VISIBLE_DEVICES"] = cuda_device_id
-        print('using GPU')
-    except:
-        device = torch.device('cpu')
-        print('using CPU (no CUDA)')
-
     scores = []
 
     seed = 42
@@ -314,5 +301,5 @@ if __name__ == '__main__':
 
             # info = dataset_to_file(dataset, data_save=False)
 
-            ml_cross(dataset, None, align, approach, cuda_device_id)
-            #ml_within(dataset, info, align, approach, cuda_device_id)
+            ml_cross(dataset, None, align, approach)
+            #ml_within(dataset, info, align, approach)

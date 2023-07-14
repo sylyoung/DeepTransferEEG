@@ -98,7 +98,7 @@ def data_process(dataset):
     return X, y, num_subjects, paradigm, sample_rate, ch_num
 
 
-def data_loader_secondsession(dataset):
+def data_process_secondsession(dataset):
     '''
 
     :param dataset: str, dataset name

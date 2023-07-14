@@ -13,11 +13,12 @@ import torch.optim as optim
 import pandas as pd
 from scipy.spatial.distance import cdist
 import torch.nn.functional as F
-from utils import network, loss
+from utils.network import backbone_net
+from utils.loss import Entropy
 from utils.CsvRecord import CsvRecord
 from utils.LogRecord import LogRecord
-from utils.dataloader import read_mi_combine_tar, read_seed_combine_tar
-from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader, cal_bca_comb
+from utils.dataloader import read_mi_combine_tar
+from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader
 from utils.utils import lr_scheduler, fix_random_seed, op_copy, cal_acc, cal_bca, cal_auc
 
 import gc
@@ -88,7 +89,7 @@ def train_target(args):
     print('X_src, y_src, X_tar, y_tar:', X_src.shape, y_src.shape, X_tar.shape, y_tar.shape)
     dset_loaders = data_loader(X_src, y_src, X_tar, y_tar, args)
 
-    netF, netC = network.backbone_net(args, return_type='y')
+    netF, netC = backbone_net(args, return_type='y')
     if args.data_env != 'local':
         netF, netC = netF.cuda(), netC.cuda()
     base_network = nn.Sequential(netF, netC)
@@ -236,7 +237,7 @@ def train_target(args):
             classifier_loss = torch.tensor(0.0).cuda()
         if args.ent:
             softmax_out = nn.Softmax(dim=1)(outputs_test)
-            entropy_loss = torch.mean(loss.Entropy(softmax_out))
+            entropy_loss = torch.mean(Entropy(softmax_out))
             if args.gent:
                 msoftmax = softmax_out.mean(dim=0)
                 gentropy_loss = torch.sum(msoftmax * torch.log(msoftmax + args.epsilon))

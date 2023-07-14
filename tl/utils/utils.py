@@ -532,22 +532,9 @@ def data_loader_split(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     dset_loaders = {}
     train_bs = args.batch_size
 
-    Xt_copy = Xt
     if args.align:
-        Xs = data_alignment(Xs, args.N - 1, args)
-        Xt = data_alignment(Xt, 1, args)
-
-    src_idx = np.arange(len(Ys))
-
-    num_all = args.trial_num
-    if args.method == 'Domain_Classifier':
-        num_all = int(args.trial_num * args.ratio)
-    id_train = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
-
-    train_Xs, train_Ys = tr.from_numpy(Xs[id_train, :]).to(
-        tr.float32), tr.from_numpy(Ys[id_train].reshape(-1, )).to(tr.long)
-    if 'EEGNet' in args.backbone:
-        train_Xs = train_Xs.permute(0, 3, 1, 2)
+        Xs = data_alignment(Xs, args.N, args)
+        Xt = data_alignment(Xt, args.N, args)
 
     Xs, Ys = tr.from_numpy(Xs).to(
         tr.float32), tr.from_numpy(Ys.reshape(-1, )).to(tr.long)
@@ -561,70 +548,16 @@ def data_loader_split(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     if 'EEGNet' in args.backbone:
         Xt = Xt.permute(0, 3, 1, 2)
 
-    Xt_copy = tr.from_numpy(Xt_copy).to(
-        tr.float32)
-    Xt_copy = Xt_copy.unsqueeze_(3)
-    if 'EEGNet' in args.backbone:
-        Xt_copy = Xt_copy.permute(0, 3, 1, 2)
-
-    sources_ms = []
-    train_Xs_ms = split_data(train_Xs, axis=0, times=args.N - 1)
-    train_Ys_ms = split_data(train_Ys, axis=0, times=args.N - 1)
-    for i in range(args.N - 1):
-        if args.data_env != 'local':
-            train_Xs_ms[i], train_Ys_ms[i] = train_Xs_ms[i].cuda(), train_Ys_ms[i].cuda()
-        source = Data.TensorDataset(train_Xs_ms[i], train_Ys_ms[i])
-        sources_ms.append(source)
-
     if args.data_env != 'local':
-        Xs, Ys, Xt, Yt, train_Xs, train_Ys, Xt_copy = Xs.cuda(), Ys.cuda(), Xt.cuda(), Yt.cuda(), train_Xs.cuda(), train_Ys.cuda(), Xt_copy.cuda()
+        Xs, Ys, Xt, Yt = Xs.cuda(), Ys.cuda(), Xt.cuda(), Yt.cuda()
 
     data_src = Data.TensorDataset(Xs, Ys)
-    source_tr = Data.TensorDataset(train_Xs, train_Ys)
     data_tar = Data.TensorDataset(Xt, Yt)
-
-    data_tar_online = Data.TensorDataset(Xt_copy, Yt)
-
-    # for DNN base model
-    dset_loaders["source_tr"] = Data.DataLoader(source_tr, batch_size=train_bs, shuffle=True, drop_last=True)
 
     # for TL train
     dset_loaders["source"] = Data.DataLoader(data_src, batch_size=train_bs, shuffle=True, drop_last=True)
-    dset_loaders["target"] = Data.DataLoader(data_tar, batch_size=train_bs, shuffle=True, drop_last=True)
 
     # for TL test
-    dset_loaders["Source"] = Data.DataLoader(data_src, batch_size=train_bs * 3, shuffle=False, drop_last=False)
     dset_loaders["Target"] = Data.DataLoader(data_tar, batch_size=train_bs * 3, shuffle=False, drop_last=False)
-
-    # for online TL test
-    dset_loaders["Target-Online"] = Data.DataLoader(data_tar_online, batch_size=1, shuffle=False, drop_last=False)
-
-    # for online imbalanced dataset
-    # only implemented for binary (class_num=2) for now
-    class_0_ids = torch.where(Yt == 0)[0][:args.trial_num // 2]
-    class_1_ids = torch.where(Yt == 1)[0][:args.trial_num // 4]
-    all_ids = torch.cat([class_0_ids, class_1_ids])
-    if args.data_env != 'local':
-        data_tar_imb = Data.TensorDataset(Xt_copy[all_ids].cuda(), Yt[all_ids].cuda())
-    else:
-        data_tar_imb = Data.TensorDataset(Xt_copy[all_ids], Yt[all_ids])
-    dset_loaders["Target-Online-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=1, shuffle=True,
-                                                               drop_last=False)
-    dset_loaders["target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs, shuffle=True, drop_last=True)
-    dset_loaders["Target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs * 3, shuffle=True,
-                                                        drop_last=False)
-
-    # for multi-sources
-    loader_arr = []
-    for i in range(args.N - 1):
-        loader = Data.DataLoader(sources_ms[i], batch_size=train_bs, shuffle=True, drop_last=True)
-        loader_arr.append(loader)
-    dset_loaders["sources"] = loader_arr
-
-    loader_arr_S = []
-    for i in range(args.N - 1):
-        loader = Data.DataLoader(sources_ms[i], batch_size=train_bs, shuffle=False, drop_last=False)
-        loader_arr_S.append(loader)
-    dset_loaders["Sources"] = loader_arr_S
 
     return dset_loaders

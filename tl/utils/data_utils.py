@@ -40,7 +40,7 @@ def traintest_split_cross_subject(dataset, X, y, num_subjects, test_subject_id):
     return train_x, train_y, test_x, test_y
 
 
-def traintest_split_domain_classifier(dataset, X, y, num_subjects, percentage):
+def traintest_split_domain_classifier(dataset, X, y, num_subjects, ratio):
     data_subjects = np.split(X, indices_or_sections=num_subjects, axis=0)
     train_x_all = []
     train_y_all = []
@@ -49,10 +49,10 @@ def traintest_split_domain_classifier(dataset, X, y, num_subjects, percentage):
     for i in range(num_subjects):
         data = data_subjects[i]
         random.shuffle(data)
-        train_x_all.append(data[:int(len(data) * percentage)])
-        train_y_all.append(np.ones((int(len(data) * percentage)),) * i)
-        test_x_all.append(data[int(len(data) * percentage):])
-        test_y_all.append(np.ones((int(len(data) * (1 - percentage))),) * i)
+        train_x_all.append(data[:int(len(data) * ratio)])
+        train_y_all.append(np.ones((int(len(data) * ratio)),) * i)
+        test_x_all.append(data[int(len(data) * ratio):])
+        test_y_all.append(np.ones((int(len(data) * (1 - ratio))),) * i)
     train_x = np.concatenate(train_x_all, axis=0)
     train_y = np.concatenate(train_y_all, axis=0)
     test_x = np.concatenate(test_x_all, axis=0)

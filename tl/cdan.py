@@ -10,10 +10,10 @@ import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
 
-from utils import network, loss
+from utils.network import backbone_net, AdversarialNetwork
 from utils.LogRecord import LogRecord
-from utils.dataloader import read_mi_combine_tar, read_seed_combine_tar
-from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader, cal_bca_comb
+from utils.dataloader import read_mi_combine_tar
+from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader
 from utils.loss import CELabelSmooth_raw, CDANE, Entropy, RandomLayer
 from utils.network import calc_coeff
 
@@ -25,14 +25,14 @@ def train_target(args):
     X_src, y_src, X_tar, y_tar = read_mi_combine_tar(args)
     dset_loaders = data_loader(X_src, y_src, X_tar, y_tar, args)
 
-    netF, netC = network.backbone_net(args, return_type='xy')
+    netF, netC = backbone_net(args, return_type='xy')
     if args.data_env != 'local':
         netF, netC = netF.cuda(), netC.cuda()
     base_network = nn.Sequential(netF, netC)
 
     args.max_iter = args.max_epoch * len(dset_loaders["source"])
 
-    ad_net = network.AdversarialNetwork(args.feature_deep_dim, 32, 8).cuda()
+    ad_net = AdversarialNetwork(args.feature_deep_dim, 32, 8).cuda()
     random_layer = RandomLayer([args.feature_deep_dim, args.class_num], args.feature_deep_dim)
     random_layer.cuda()
 

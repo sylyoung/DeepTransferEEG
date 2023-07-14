@@ -7,11 +7,9 @@ import random
 import pandas as pd
 import torch as tr
 import torch.utils.data
-from sklearn.metrics import balanced_accuracy_score, accuracy_score
-try:
-    from utils.dataloader import data_loader
-except:
-    from tl.utils.dataloader import data_loader
+from sklearn.metrics import accuracy_score
+from utils.dataloader import data_process
+
 
 
 def convert_label(labels, axis, threshold, minus1=False):

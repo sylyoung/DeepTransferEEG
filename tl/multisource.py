@@ -11,7 +11,7 @@ import torch.optim as optim
 import pandas as pd
 from sklearn.metrics import accuracy_score
 
-from utils import network, loss
+from utils.network import backbone_net
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import fix_random_seed, cal_acc_comb, data_loader, cal_metrics_multisource
@@ -28,7 +28,7 @@ def train_target(args):
     base_networks = []
     optimizers = []
     for i in range(args.N - 1):
-        netF, netC = network.backbone_net(args, return_type='xy')
+        netF, netC = backbone_net(args, return_type='xy')
         if args.data_env != 'local':
             netF, netC = netF.cuda(), netC.cuda()
         base_network = nn.Sequential(netF, netC)
