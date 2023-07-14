@@ -5,7 +5,7 @@
 import torch as tr
 import numpy as np
 from sklearn import preprocessing
-from utils.data_utils import traintest_split_cross_subject, traintest_split_domain_classifier, traintest_split_multisource
+from data_utils import traintest_split_cross_subject, traintest_split_domain_classifier, traintest_split_multisource
 
 def data_process(dataset):
     '''
@@ -194,7 +194,7 @@ def data_process_secondsession(dataset):
 def read_mi_combine_tar(args):
     if 'ontinual' in args.method:  # TODO
         # Continual TTA
-        X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader_secondsession(args.data)
+        X, y, num_subjects, paradigm, sample_rate, ch_num = data_process_secondsession(args.data)
     else:
         X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(args.data)
 
