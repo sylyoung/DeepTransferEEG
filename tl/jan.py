@@ -10,7 +10,6 @@ import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
 from utils.network import backbone_net
-from utils.CsvRecord import CsvRecord
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader

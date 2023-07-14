@@ -1,6 +1,9 @@
 import mne
 import numpy as np
 import torch
+import torch.utils.data as Data
+import torch.nn as nn
+import argparse
 from sklearn import preprocessing
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import AdaBoostClassifier, GradientBoostingClassifier
@@ -8,12 +11,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from xgboost import XGBClassifier
 
+
+
 import random
 import sys
 import os
 
 from utils.alg_utils import EA
-from tl.ttime_ensemble import SML_soft, SML_soft_multiclass
 
 
 def apply_zscore(train_x, test_x, num_subjects):
@@ -183,7 +187,77 @@ def ml_classifier(approach, output_probability, train_x, train_y, test_x, return
         return pred
 
 
-def ml_multisource(dataset, info, align, approach, cuda_device_id):
+def convert_label(labels, axis, threshold, minus1=False):
+    if minus1:
+        # Converting labels to -1 or 1, based on a certain threshold
+        if np.random.randint(2, size=1)[0] == 1:
+            label_01 = np.where(labels > threshold, 1, -1)
+        else:
+            label_01 = np.where(labels >= threshold, 1, -1)
+    else:
+        # Converting labels to 0 or 1, based on a certain threshold
+        if np.random.randint(2, size=1)[0] == 1:
+            label_01 = np.where(labels > threshold, 1, 0)
+        else:
+            label_01 = np.where(labels >= threshold, 1, 0)
+    return label_01
+
+
+
+def SML_soft(preds):
+    """
+    Parameters
+    ----------
+    preds : numpy array
+        data of shape (num_models, num_test_samples)
+
+    Returns
+    ----------
+    pred : numpy array
+        data of shape (num_test_samples)
+    """
+    soft = torch.from_numpy(preds).to(torch.float32)
+    out = torch.mm(soft, soft.T)
+    w, v = np.linalg.eig(out)
+    accuracies = v[:, 0]
+    total = np.sum(accuracies)
+    weights = accuracies / total
+    prediction = np.dot(weights, soft.numpy())
+    pred = convert_label(prediction, 0, 0.5)
+    return pred
+
+
+def SML_soft_multiclass(preds):
+    """
+    Parameters
+    ----------
+    preds : numpy array
+        data of shape (num_models, num_test_samples, num_classes)
+
+    Returns
+    ----------
+    pred : numpy array
+        data of shape (num_test_samples)
+    """
+    predictions = []
+    class_num = preds.shape[-1]
+    for i in range(class_num):
+        soft = torch.from_numpy(preds[:, :, i]).to(torch.float32)
+        out = torch.mm(soft, soft.T)
+        w, v = np.linalg.eig(out)
+        accuracies = v[:, 0]
+        total = np.sum(accuracies)
+        weights = accuracies / total
+        prediction = np.dot(weights, soft.numpy())
+        predictions.append(prediction)
+    predictions = np.array(predictions)
+    pred = np.argmax(predictions, axis=0)
+    return pred
+
+
+
+
+def ml_multisource(dataset, info, align, approach, combine_strategy, cuda_device_id, args):
     X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(dataset)
     print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
 
@@ -199,8 +273,12 @@ def ml_multisource(dataset, info, align, approach, cuda_device_id):
         print('num of train_x, train_x, train_y, test_x, test_y.shape', len(train_x), train_x[0].shape, train_y[0].shape, test_x.shape, test_y.shape)
 
         if paradigm == 'MI':
+            # NNM
+            if combine_strategy == 'NNM':
+                args.idt = i
+                similarity_weights = NeuralNetworkMeasurement(test_x, args)
+
             # CSP
-            subj_scores = []
             subj_preds = []
             for s in range(len(train_x)):
                 subj_train_x, subj_train_y = train_x[s], train_y[s]
@@ -211,7 +289,12 @@ def ml_multisource(dataset, info, align, approach, cuda_device_id):
                 # classifier
                 subj_pred, subj_model = ml_classifier(approach, True, subj_train_x_csp, subj_train_y, subj_test_x_csp, return_model=True)
                 subj_preds.append(subj_pred)
+
+
             subj_preds = np.stack(subj_preds)
+            print(subj_preds.shape)
+            print(similarity_weights.shape)
+            input('')
 
             # SML
             if dataset == 'BNCI2014001-4':
@@ -235,6 +318,159 @@ def ml_multisource(dataset, info, align, approach, cuda_device_id):
     return scores_arr
 
 
+class EEGNet_feature(nn.Module):
+
+    def __init__(self,
+                 n_classes: int,
+                 Chans: int,
+                 Samples: int,
+                 kernLenght: int,
+                 F1: int,
+                 D: int,
+                 F2: int,
+                 dropoutRate:  float,
+                 norm_rate: float):
+        super(EEGNet_feature, self).__init__()
+
+        self.n_classes = n_classes
+        self.Chans = Chans
+        self.Samples = Samples
+        self.kernLenght = kernLenght
+        self.F1 = F1
+        self.D = D
+        self.F2 = F2
+        self.dropoutRate = dropoutRate
+        self.norm_rate = norm_rate
+
+        self.block1 = nn.Sequential(
+            nn.ZeroPad2d((self.kernLenght // 2 - 1,
+                          self.kernLenght - self.kernLenght // 2, 0,
+                          0)),  # left, right, up, bottom
+            nn.Conv2d(in_channels=1,
+                      out_channels=self.F1,
+                      kernel_size=(1, self.kernLenght),
+                      stride=1,
+                      bias=False),
+            nn.BatchNorm2d(num_features=self.F1),
+            # DepthwiseConv2d
+            nn.Conv2d(in_channels=self.F1,
+                      out_channels=self.F1 * self.D,
+                      kernel_size=(self.Chans, 1),
+                      groups=self.F1,
+                      bias=False),
+            nn.BatchNorm2d(num_features=self.F1 * self.D),
+            nn.ELU(),
+            nn.AvgPool2d((1, 4)),
+            nn.Dropout(p=self.dropoutRate))
+
+        self.block2 = nn.Sequential(
+            nn.ZeroPad2d((7, 8, 0, 0)),
+            # SeparableConv2d
+            nn.Conv2d(in_channels=self.F1 * self.D,
+                      out_channels=self.F1 * self.D,
+                      kernel_size=(1, 16),
+                      stride=1,
+                      groups=self.F1 * self.D,
+                      bias=False),
+            nn.Conv2d(in_channels=self.F1 * self.D,
+                      out_channels=self.F2,
+                      kernel_size=(1, 1),
+                      stride=1,
+                      bias=False),
+            nn.BatchNorm2d(num_features=self.F2),
+            nn.ELU(),
+            nn.AvgPool2d((1, 8)),
+            nn.Dropout(self.dropoutRate))
+
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        output = self.block1(x)
+        output = self.block2(output)
+        output = output.reshape(output.size(0), -1)
+        return output
+
+
+class FC(nn.Module):
+    def __init__(self, nn_in, nn_out):
+        super(FC, self).__init__()
+        self.fc = nn.Linear(nn_in, nn_out)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return x
+
+
+class FC_xy(nn.Module):
+    def __init__(self, nn_in, nn_out):
+        super(FC_xy, self).__init__()
+        self.nn_out = nn_out
+        self.fc = nn.Linear(nn_in, nn_out)
+
+    def forward(self, x):
+        y = self.fc(x)
+        return x, y
+
+
+def backbone_net(args, return_type='y'):
+    netF = EEGNet_feature(n_classes=args.class_num,
+                        Chans=args.chn,
+                        Samples=args.time_sample_num,
+                        kernLenght=int(args.sample_rate // 2),
+                        F1=4,
+                        D=2,
+                        F2=8,
+                        dropoutRate=0.25,
+                        norm_rate=0.5)
+    if return_type == 'y':
+        netC = FC(args.feature_deep_dim, args.class_num)
+    elif return_type == 'xy':
+        netC = FC_xy(args.feature_deep_dim, args.class_num)
+    return netF, netC
+
+
+def NeuralNetworkMeasurement(test_x, args):
+    '''
+
+    Parameters
+    ----------
+    test_x: test data of numpy array (num_samples, num_channels, num_timesamples)
+
+    Returns
+    -------
+    weights: weights of source domains of numpy array (num_samples, num_source_domains)
+    '''
+
+    netF, netC = backbone_net(args, return_type='xy')
+    if args.device != torch.device('cpu'):
+        netF, netC = netF.cuda(), netC.cuda()
+    base_network = nn.Sequential(netF, netC)
+    if args.align:
+        if args.device != torch.device('cpu'):
+            base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + 'Domain_Classifier' + '_' + str(args.backbone) +
+                                                    '_S' + str(args.idt) + '_seed' + str(args.SEED) + '.ckpt'))
+        else:
+            base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + 'Domain_Classifier' + '_' + str(args.backbone) +
+                                                    '_S' + str(args.idt) + '_seed' + str(args.SEED) + '.ckpt', map_location=torch.device('cpu')))
+
+    test_x = torch.from_numpy(test_x).to(torch.float32)
+    test_x = test_x.unsqueeze_(3)
+    # EEGNet
+    test_x = test_x.permute(0, 3, 1, 2)
+    data_test = Data.TensorDataset(test_x)
+    data_loader = Data.DataLoader(data_test, batch_size=32, shuffle=False, drop_last=False)
+    with torch.no_grad():
+        all_output = []
+        for [x] in data_loader:
+            if args.device != torch.device('cpu'):
+                x = x.cuda()
+            _, outputs = base_network(x)
+            all_output.append(outputs)
+    all_output = torch.nn.Softmax(dim=1)(torch.cat(all_output))
+    all_output = all_output.detach().cpu().numpy()
+
+    return all_output
+
+
 if __name__ == '__main__':
 
     # cuda_device_id as args[1]
@@ -256,17 +492,35 @@ if __name__ == '__main__':
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
 
     dataset_arr = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014001-4']
 
+    combine_strategy = 'NNM'
+
+    align = True
+
     for dataset in dataset_arr:
 
-        for approach in ['LDA']:
-            # use EA
-            align = True
+        if dataset == 'BNCI2014001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 2, 1001, 250, 144, 248
+        if dataset == 'BNCI2014002': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 14, 15, 2, 2561, 512, 100, 640
+        if dataset == 'BNCI2015001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 12, 13, 2, 2561, 512, 200, 640
+        if dataset == 'BNCI2014001-4': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 4, 1001, 250, 288, 248
 
-            print(dataset, align, approach)
+        for s in [1, 2, 3, 4, 5]:
 
-            # info = dataset_to_file(dataset, data_save=False)
+            args = argparse.Namespace(feature_deep_dim=feature_deep_dim, trial_num=trial_num, device=device,
+                                      time_sample_num=time_sample_num, sample_rate=sample_rate,
+                                      N=N, chn=chn, class_num=class_num, paradigm=paradigm, data_name=dataset)
 
-            ml_multisource(dataset, None, align, approach, cuda_device_id)
+            args.SEED = s
+            args.align = align
+            args.backbone = 'EEGNet'
+
+            for approach in ['LDA']:
+
+                print(dataset, align, approach)
+
+                # info = dataset_to_file(dataset, data_save=False)
+
+                ml_multisource(dataset, None, align, approach, combine_strategy, cuda_device_id, args)

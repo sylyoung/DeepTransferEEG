@@ -147,7 +147,7 @@ def binary_classification():
 
         print(data_name)
 
-        X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(data_name)
+        X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(data_name)
 
         total_mean = [[], [], [], []]
         # total_mean = [[], [], [], [], [], []]
@@ -292,18 +292,13 @@ def multiclass_classification():
 
         print(data_name)
 
-        X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(data_name)
+        X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(data_name)
 
         total_mean = [[], [], []]
 
         if data_name == 'BNCI2014001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 2, 1001, 250, 144, 248
         if data_name == 'BNCI2014002': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 14, 15, 2, 2561, 512, 100, 640
-        if data_name == 'MI1': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 7, 59, 2, 300, 200, 100, 72
         if data_name == 'BNCI2015001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 12, 13, 2, 2561, 512, 200, 640
-        if data_name == 'BNCI2014008': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'ERP', 8, 8, 2, 206, 256, 4200, 48
-        if data_name == 'BNCI2014009': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'ERP', 10, 16, 2, 206, 256, 1728, 48
-        if data_name == 'BNCI2015003': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'ERP', 10, 8, 2, 206, 256, 2520, 48
-        if data_name == 'BNCI2014001-4': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 4, 1001, 250, 288, 248
 
         seed_arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         preds = []
