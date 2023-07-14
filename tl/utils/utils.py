@@ -351,33 +351,38 @@ def cal_auc_comb(loader, model, flag=True, fc=None, args=None):
     return auc * 100, all_output
 
 
-def cal_metrics_multisource(loader, nets, N, class_out, metrics, mode='avg'):
+def cal_metrics_multisource(loader, nets, args, metrics):
     # mode 'avg', 'vote'
     y_true = []
     y_pred = []
     with torch.no_grad():
         for x, y in loader:
             all_probs = None
-            for i in range(N - 1):
-                x = x.cuda()
-                y = y.cuda()
+            for i in range(args.N - 1):
+                if args.data_env != 'local':
+                    x = x.cuda()
+                    y = y.cuda()
                 outputs = nets[i][0](x)
                 _, outputs = nets[i][1](outputs)
                 predicted_probs = torch.nn.functional.softmax(outputs, dim=1)
                 if all_probs is None:
-                    all_probs = torch.zeros((x.shape[0], class_out)).cuda()
+                    all_probs = torch.zeros((x.shape[0], args.class_num))
+                    if args.data_env != 'local':
+                        all_probs = all_probs.cuda()
                 else:
-                    all_probs += predicted_probs.reshape(x.shape[0], class_out)
+                    all_probs += predicted_probs.reshape(x.shape[0], args.class_num)
 
                 _, predicted = torch.max(predicted_probs, 1)
 
-                if mode == 'vote':
-                    votes = torch.zeros((x.shape[0], class_out)).cuda()
+                if args.mode == 'vote':
+                    votes = torch.zeros((x.shape[0], args.class_num))
+                    if args.data_env != 'local':
+                        votes = votes.cuda()
                     for i in range(x.shape[0]):
                         votes[i, predicted[i]] += 1
-            if mode == 'vote':
+            if args.mode == 'vote':
                 _, predicted = torch.max(votes, 1)  # VOTING
-            if mode == 'avg':
+            if args.mode == 'avg':
                 _, predicted = torch.max(all_probs, 1)  # AVERAGING
             y_true.append(y.cpu())
             y_pred.append(predicted.cpu())
@@ -427,6 +432,7 @@ def data_alignment(X, num_subjects, args):
 
 
 def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
+    # cross-subject loader
     dset_loaders = {}
     train_bs = args.batch_size
 
@@ -434,18 +440,6 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     if args.align:
         Xs = data_alignment(Xs, args.N - 1, args)
         Xt = data_alignment(Xt, 1, args)
-
-    src_idx = np.arange(len(Ys))
-
-    num_all = args.trial_num
-    if args.method == 'Domain_Classifier':
-        num_all = int(args.trial_num * args.ratio)
-    id_train = np.array(src_idx).reshape(-1, num_all).reshape(1, -1).flatten()
-
-    train_Xs, train_Ys = tr.from_numpy(Xs[id_train, :]).to(
-        tr.float32), tr.from_numpy(Ys[id_train].reshape(-1, )).to(tr.long)
-    if 'EEGNet' in args.backbone:
-        train_Xs = train_Xs.permute(0, 3, 1, 2)
 
     Xs, Ys = tr.from_numpy(Xs).to(
         tr.float32), tr.from_numpy(Ys.reshape(-1, )).to(tr.long)
@@ -465,26 +459,13 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     if 'EEGNet' in args.backbone:
         Xt_copy = Xt_copy.permute(0, 3, 1, 2)
 
-    sources_ms = []
-    train_Xs_ms = split_data(train_Xs, axis=0, times=args.N - 1)
-    train_Ys_ms = split_data(train_Ys, axis=0, times=args.N - 1)
-    for i in range(args.N - 1):
-        if args.data_env != 'local':
-            train_Xs_ms[i], train_Ys_ms[i] = train_Xs_ms[i].cuda(), train_Ys_ms[i].cuda()
-        source = Data.TensorDataset(train_Xs_ms[i], train_Ys_ms[i])
-        sources_ms.append(source)
-
     if args.data_env != 'local':
-        Xs, Ys, Xt, Yt, train_Xs, train_Ys, Xt_copy = Xs.cuda(), Ys.cuda(), Xt.cuda(), Yt.cuda(), train_Xs.cuda(), train_Ys.cuda(), Xt_copy.cuda()
+        Xs, Ys, Xt, Yt, Xt_copy = Xs.cuda(), Ys.cuda(), Xt.cuda(), Yt.cuda(), Xt_copy.cuda()
 
     data_src = Data.TensorDataset(Xs, Ys)
-    source_tr = Data.TensorDataset(train_Xs, train_Ys)
     data_tar = Data.TensorDataset(Xt, Yt)
 
     data_tar_online = Data.TensorDataset(Xt_copy, Yt)
-
-    # for DNN base model
-    dset_loaders["source_tr"] = Data.DataLoader(source_tr, batch_size=train_bs, shuffle=True, drop_last=True)
 
     # for TL train
     dset_loaders["source"] = Data.DataLoader(data_src, batch_size=train_bs, shuffle=True, drop_last=True)
@@ -512,6 +493,60 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     dset_loaders["Target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs * 3, shuffle=True,
                                                         drop_last=False)
 
+    return dset_loaders
+
+
+def data_loader_multisource(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
+    # multi-source cross-subject loader
+    dset_loaders = {}
+    train_bs = args.batch_size
+
+    Xt_copy = Xt
+    if args.align:
+        for i in range(len(Xs)):
+            Xs[i] = data_alignment(Xs[i], 1, args)
+        Xt = data_alignment(Xt, 1, args)
+
+    for i in range(len(Xs)):
+        Xs[i], Ys[i] = tr.from_numpy(Xs[i]).to(
+            tr.float32), tr.from_numpy(Ys[i].reshape(-1, )).to(tr.long)
+        Xs[i] = Xs[i].unsqueeze_(3)
+        if 'EEGNet' in args.backbone:
+            Xs[i] = Xs[i].permute(0, 3, 1, 2)
+
+    Xt, Yt = tr.from_numpy(Xt).to(
+        tr.float32), tr.from_numpy(Yt.reshape(-1, )).to(tr.long)
+    Xt = Xt.unsqueeze_(3)
+    if 'EEGNet' in args.backbone:
+        Xt = Xt.permute(0, 3, 1, 2)
+
+    Xt_copy = tr.from_numpy(Xt_copy).to(
+        tr.float32)
+    Xt_copy = Xt_copy.unsqueeze_(3)
+    if 'EEGNet' in args.backbone:
+        Xt_copy = Xt_copy.permute(0, 3, 1, 2)
+
+    sources_ms = []
+    for i in range(args.N - 1):
+        if args.data_env != 'local':
+            Xs[i], Ys[i] = Xs[i].cuda(), Ys[i].cuda()
+        source = Data.TensorDataset(Xs[i], Ys[i])
+        sources_ms.append(source)
+
+    if args.data_env != 'local':
+        Xt, Yt, Xt_copy = Xt.cuda(), Yt.cuda(), Xt_copy.cuda()
+
+    data_tar = Data.TensorDataset(Xt, Yt)
+
+    data_tar_online = Data.TensorDataset(Xt_copy, Yt)
+
+    # for TL test
+    dset_loaders["target"] = Data.DataLoader(data_tar, batch_size=train_bs, shuffle=True, drop_last=True)
+    dset_loaders["Target"] = Data.DataLoader(data_tar, batch_size=train_bs * 3, shuffle=False, drop_last=False)
+
+    # for online TL test
+    dset_loaders["Target-Online"] = Data.DataLoader(data_tar_online, batch_size=1, shuffle=False, drop_last=False)
+
     # for multi-sources
     loader_arr = []
     for i in range(args.N - 1):
@@ -528,7 +563,36 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     return dset_loaders
 
 
+def data_loader_without_tar(Xs=None, Ys=None, args=None):
+    # no target process
+    dset_loaders = {}
+    train_bs = args.batch_size
+
+    if args.align:
+        Xs = data_alignment(Xs, args.N - 1, args)
+
+    Xs, Ys = tr.from_numpy(Xs).to(
+        tr.float32), tr.from_numpy(Ys.reshape(-1, )).to(tr.long)
+    Xs = Xs.unsqueeze_(3)
+    if 'EEGNet' in args.backbone:
+        Xs = Xs.permute(0, 3, 1, 2)
+
+    if args.data_env != 'local':
+        Xs, Ys = Xs.cuda(), Ys.cuda()
+
+    data_src = Data.TensorDataset(Xs, Ys)
+
+    # for TL train
+    dset_loaders["source"] = Data.DataLoader(data_src, batch_size=train_bs, shuffle=True, drop_last=True)
+
+    # for TL test
+    dset_loaders["Source"] = Data.DataLoader(data_src, batch_size=train_bs * 3, shuffle=False, drop_last=False)
+
+    return dset_loaders
+
+
 def data_loader_split(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
+    # within-subject loader
     dset_loaders = {}
     train_bs = args.batch_size
 

@@ -2,10 +2,10 @@
 # @Time    : 2023/7/11
 # @Author  : Siyang Li
 # @File    : dataloader.py
-import torch as tr
 import numpy as np
 from sklearn import preprocessing
-from data_utils import traintest_split_cross_subject, traintest_split_domain_classifier, traintest_split_multisource
+from utils.data_utils import traintest_split_cross_subject, traintest_split_domain_classifier, traintest_split_multisource, traintest_split_domain_classifier_pretest, traintest_split_multisource
+
 
 def data_process(dataset):
     '''
@@ -203,11 +203,28 @@ def read_mi_combine_tar(args):
     return src_data, src_label, tar_data, tar_label
 
 
-def read_mi_combine_split(args):
+def read_mi_combine_domain(args):
 
     X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(args.data)
 
-    src_data, src_label, tar_data, tar_label = traintest_split_domain_classifier(args.data, X, y, num_subjects, args.ratio)
+    src_data, src_label, tar_data, tar_label = traintest_split_domain_classifier(args.data, X, y, num_subjects, args.idt)
+
+    return src_data, src_label, tar_data, tar_label
+
+
+def read_mi_combine_domain_split(args):
+
+    X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(args.data)
+
+    src_data, src_label, tar_data, tar_label = traintest_split_domain_classifier_pretest(args.data, X, y, num_subjects, args.ratio)
+
+    return src_data, src_label, tar_data, tar_label
+
+
+def read_mi_multi_source(args):
+    X, y, num_subjects, paradigm, sample_rate, ch_num = data_process(args.data)
+
+    src_data, src_label, tar_data, tar_label = traintest_split_multisource(args.data, X, y, num_subjects, args.idt)
 
     return src_data, src_label, tar_data, tar_label
 
