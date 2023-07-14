@@ -12,35 +12,54 @@ Install Conda dependencies based on  `environment.yml` file.
 #### 2. Download Datasets
 
 To download datasets, run   
-```sh prepare_data.sh```   
+```sh 
+sh prepare_data.sh
+```   
 or   
-```python ./utils/data_utils.py```   
+```sh
+python ./utils/data_utils.py
+```
 
 #### (Optional) 3. Training Source Subject Models
 
 We have provided the source models (baseline source-combined EA+EEGNet) under ./runs, but feel free to train them from scratch.  
 To train your own source models, run   
-```sh train.sh```   
+```sh 
+sh train.sh
+```   
 or   
-```python ./tl/dnn.py```
+```sh 
+python ./tl/dnn.py
+```  
+
 Note that such source models serve as EEGNet baselines, and are also used in SFUDA and TTA approaches as the initializations. So to save time for TTA/SFUDA for target subject adaptation, it is better to have them ready first.  
 
-#### 4. Conduct Transfer Learning on Target Subject
+#### 4. Transfer Learning for Target Subject
 
 To test the T-TIME algorithm, run   
-```sh test.sh```   
+```sh 
+test.sh
+```   
 or   
-```python ./tl/ttime.py```   
+```sh 
+python ./tl/ttime.py
+```   
 
 Other approaches can be executed in a similar way. Run any of   
-```python ./tl/*.py```   
+```sh 
+python ./tl/*.py
+```   
 for its corresponding results.
 
 Note that ensemble is seperated. For ensemble results, after running T-TIME, run  
-```python ./tl/ttime_ensemble.py```   
+```sh 
+python ./tl/ttime_ensemble.py
+```   
 
 For CSP approach, it is not a deep learning approach and is seperated from the others. Run   
-```python ./ml/feature.py```
+```sh 
+python ./ml/feature.py
+```
 
 ## Hyperparameters
 
