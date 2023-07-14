@@ -444,7 +444,6 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
 
     train_Xs, train_Ys = tr.from_numpy(Xs[id_train, :]).to(
         tr.float32), tr.from_numpy(Ys[id_train].reshape(-1, )).to(tr.long)
-    train_Xs = train_Xs.unsqueeze_(3).permute(0, 3, 1, 2)
     if 'EEGNet' in args.backbone:
         train_Xs = train_Xs.permute(0, 3, 1, 2)
 
@@ -472,7 +471,6 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     for i in range(args.N - 1):
         if args.data_env != 'local':
             train_Xs_ms[i], train_Ys_ms[i] = train_Xs_ms[i].cuda(), train_Ys_ms[i].cuda()
-        print('Source', str(i), train_Xs_ms[i].shape, train_Ys_ms[i].shape)
         source = Data.TensorDataset(train_Xs_ms[i], train_Ys_ms[i])
         sources_ms.append(source)
 
