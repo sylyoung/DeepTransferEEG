@@ -290,21 +290,26 @@ def ml_multisource(dataset, info, align, approach, combine_strategy, cuda_device
                 subj_pred, subj_model = ml_classifier(approach, True, subj_train_x_csp, subj_train_y, subj_test_x_csp, return_model=True)
                 subj_preds.append(subj_pred)
 
-
             subj_preds = np.stack(subj_preds)
             print(subj_preds.shape)
             print(similarity_weights.shape)
+            pred = np.dot(similarity_weights.reshape(similarity_weights.shape[1], -1), subj_preds)
+            print(pred.shape)
             input('')
 
+            '''
             # SML
             if dataset == 'BNCI2014001-4':
                 pred = SML_soft_multiclass(subj_preds[:, :])
             else:
                 pred = SML_soft(subj_preds[:, :, 1])
+            '''
 
+            '''
             # averaging
             #avg_pred = np.average(subj_preds, axis=0)
             #pred = np.argmax(avg_pred, axis=1)
+            '''
 
             subj_scores = np.round(accuracy_score(test_y, pred), 5)
             score = np.mean(subj_scores)

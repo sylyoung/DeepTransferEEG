@@ -1,10 +1,8 @@
-import os
-
+# -*- coding: utf-8 -*-
+# @Time    : 2023/01/14
+# @Author  : Siyang Li
+# @File    : data_utils.py
 import numpy as np
-import moabb
-
-from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2014008, BNCI2014009, BNCI2015003, BNCI2015004, EPFLP300, BNCI2014004, BNCI2015001, PhysionetMI
-from moabb.paradigms import MotorImagery, P300
 
 
 def split_data(data, axis, times):

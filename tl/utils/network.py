@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+# @Time    : 2023/07/07
+# @Author  : Siyang Li
+# @File    : network.py
 import numpy as np
 import torch as tr
 import torch.nn as nn
