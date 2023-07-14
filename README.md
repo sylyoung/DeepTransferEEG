@@ -24,7 +24,7 @@ Note that such source models serve as EEGNet baselines, and are also used in SFU
 Run ```sh test.sh``` or ```python ./tl/ttime.py``` to test the T-TIME algorithm.  
 Run any of ```python ./tl/*.py``` for its corresponding results. For example, T-TIME results can be reproduced using ```python ./tl/ttime.py```  
 Note that ensemble is seperated in ```python ./tl/ttime_ensemble.py``` for the purpose of clarity.  
-For CSP approach, it is not a deep learning approach and is seperated from the others. Run ```python ./feature.py``` for results.
+For CSP approach, it is not a deep learning approach and is seperated from the others. Run ```python ./ml/feature.py``` for results.
 
 ## Hyperparameters
 
