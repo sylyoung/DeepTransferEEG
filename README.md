@@ -38,7 +38,7 @@ Note that such source models serve as EEGNet baselines, and are also used in SFU
 
 To test the T-TIME algorithm, run   
 ```sh 
-test.sh
+sh test.sh
 ```   
 or   
 ```sh 
@@ -84,6 +84,7 @@ Most hyperparameters/configurations of approaches/experiments are under the *arg
 #### 12. T3A
 #### 13. CoTTA
 #### 14. SAR
+#### More to come!
 
 ## Contact
 
