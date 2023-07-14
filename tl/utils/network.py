@@ -5,12 +5,30 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.weight_norm as weightNorm
 
-from models.EEGNet import EEGNet_feature, EEGNet, EEGNetCNNFusion, EEGNetDouble, EEGNetSiameseFusionFeature
-from models.FC import FC, FC_xy, FC_cat, FC_cat_xy, FC_xy_batch
+from models.EEGNet import EEGNet_feature, EEGNet
+from models.FC import FC, FC_xy
+
+
+def backbone_net(args, return_type='y'):
+    netF = EEGNet_feature(n_classes=args.class_num,
+                        Chans=args.chn,
+                        Samples=args.time_sample_num,
+                        kernLenght=int(args.sample_rate // 2),
+                        F1=4,
+                        D=2,
+                        F2=8,
+                        dropoutRate=0.25,
+                        norm_rate=0.5)
+    if return_type == 'y':
+        netC = FC(args.feature_deep_dim, args.class_num)
+    elif return_type == 'xy':
+        netC = FC_xy(args.feature_deep_dim, args.class_num)
+    return netF, netC
+
 
 # dynamic change the weight of the domain-discriminator
 def calc_coeff(iter_num, alpha=10.0, max_iter=10000.0):
-    return np.float(2.0 / (1.0 + np.exp(-alpha * iter_num / max_iter)) - 1)
+    return float(2.0 / (1.0 + np.exp(-alpha * iter_num / max_iter)) - 1)
 
 
 def init_weights(m):
@@ -109,23 +127,6 @@ class feat_classifier_xy(nn.Module):
     def forward(self, x):
         y = self.fc(x)
         return x, y
-
-
-def backbone_net(args, return_type='y'):
-    netF = EEGNet_feature(n_classes=args.class_num,
-                        Chans=args.chn,
-                        Samples=args.time_sample_num,
-                        kernLenght=int(args.sample_rate // 2),
-                        F1=4,
-                        D=2,
-                        F2=8,
-                        dropoutRate=0.25,
-                        norm_rate=0.5)
-    if return_type == 'y':
-        netC = FC(args.feature_deep_dim, args.class_num)
-    elif return_type == 'xy':
-        netC = FC_xy(args.feature_deep_dim, args.class_num)
-    return netF, netC
 
 
 class scalar(nn.Module):

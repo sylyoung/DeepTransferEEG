@@ -32,9 +32,12 @@ def train_target(args):
 
     args.max_iter = args.max_epoch * len(dset_loaders["source"])
 
-    ad_net = AdversarialNetwork(args.feature_deep_dim, 32, 8).cuda()
+    ad_net = AdversarialNetwork(args.feature_deep_dim, 32, 8)
+    if args.data_env != 'local':
+        ad_net = ad_net.cuda()
     random_layer = RandomLayer([args.feature_deep_dim, args.class_num], args.feature_deep_dim)
-    random_layer.cuda()
+    if args.data_env != 'local':
+        random_layer = random_layer.cuda()
 
     criterion = nn.CrossEntropyLoss()
 
@@ -64,8 +67,8 @@ def train_target(args):
             continue
 
         iter_num += 1
-
-        inputs_source, inputs_target, labels_source = inputs_source.cuda(), inputs_target.cuda(), labels_source.cuda()
+        if args.data_env != 'local':
+            inputs_source, inputs_target, labels_source = inputs_source.cuda(), inputs_target.cuda(), labels_source.cuda()
         features_source, outputs_source = base_network(inputs_source)
         features_target, outputs_target = base_network(inputs_target)
         features = torch.cat((features_source, features_target), dim=0)
@@ -74,7 +77,7 @@ def train_target(args):
         outputs = torch.cat((outputs_source, outputs_target), dim=0)
         softmax_out = nn.Softmax(dim=1)(outputs)
         entropy = Entropy(softmax_out)
-        transfer_loss = CDANE([features, softmax_out], ad_net, entropy, calc_coeff(iter_num), random_layer=random_layer)
+        transfer_loss = CDANE([features, softmax_out], ad_net, entropy, calc_coeff(iter_num), args, random_layer=random_layer)
         classifier_loss = criterion(outputs_source, labels_source)
         total_loss = args.loss_trade_off * transfer_loss + classifier_loss
 

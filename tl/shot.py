@@ -15,7 +15,6 @@ from scipy.spatial.distance import cdist
 import torch.nn.functional as F
 from utils.network import backbone_net
 from utils.loss import Entropy
-from utils.CsvRecord import CsvRecord
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader
@@ -107,11 +106,21 @@ def train_target(args):
     # TODO load pretrained model
     args.max_epoch = 0
 
+    if not args.align:
+        extra_string = '_noEA'
+    else:
+        extra_string = ''
     if args.max_epoch == 0:
-        base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
-                                                '_S' + str(args.idt) + '_seed' + str(args.SEED) + '_EA_' + str(args.align) + '.ckpt'))
-        #base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
-        #                                        '_S' + str(args.idt) + '_seed' + str(args.SEED)+ + '_EA_' + str(args.align) + '_Imbalanced' + '.ckpt'))
+        if args.align:
+            if args.data_env != 'local':
+                base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
+                                                        '_S' + str(args.idt) + '_seed' + str(
+                    args.SEED) + extra_string + '.ckpt'))
+            else:
+                base_network.load_state_dict(torch.load('./runs/' + str(args.data_name) + '/' + str(args.backbone) +
+                                                        '_S' + str(args.idt) + '_seed' + str(
+                    args.SEED) + extra_string + '.ckpt', map_location=torch.device('cpu')))
+
     else:
         max_iter = args.max_epoch * len(dset_loaders["source"])
         #max_iter = args.max_epoch * len(dset_loaders["source-Imbalanced"])
@@ -210,12 +219,15 @@ def train_target(args):
         if inputs_test.size(0) == 1:
             continue
 
-        inputs_test = inputs_test.cuda()
+        if args.data_env != 'local':
+            inputs_test = inputs_test.cuda()
 
         if iter_num % interval_iter == 0 and args.cls_par > 0:
             netF.eval()
             mem_label = obtain_label(dset_loaders["Target"], netF, netC, args)
-            mem_label = torch.from_numpy(mem_label).cuda()
+            mem_label = torch.from_numpy(mem_label)
+            if args.data_env != 'local':
+                mem_label = mem_label.cuda()
             netF.train()
 
         iter_num += 1
@@ -234,7 +246,9 @@ def train_target(args):
 
             classifier_loss *= args.cls_par
         else:
-            classifier_loss = torch.tensor(0.0).cuda()
+            classifier_loss = torch.tensor(0.0)
+            if args.data_env != 'local':
+                classifier_loss = classifier_loss.cuda()
         if args.ent:
             softmax_out = nn.Softmax(dim=1)(outputs_test)
             entropy_loss = torch.mean(Entropy(softmax_out))

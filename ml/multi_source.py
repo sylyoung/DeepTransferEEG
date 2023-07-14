@@ -440,6 +440,8 @@ def NeuralNetworkMeasurement(test_x, args):
     weights: weights of source domains of numpy array (num_samples, num_source_domains)
     '''
 
+    args.class_num = args.N - 1
+    print(args.class_num)
     netF, netC = backbone_net(args, return_type='xy')
     if args.device != torch.device('cpu'):
         netF, netC = netF.cuda(), netC.cuda()
