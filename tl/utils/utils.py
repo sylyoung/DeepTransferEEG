@@ -13,8 +13,10 @@ import torch.utils.data
 import torch.utils.data as Data
 import moabb
 import mne
+import learn2learn as l2l
 from sklearn.metrics import balanced_accuracy_score, accuracy_score, roc_auc_score
 from scipy.linalg import fractional_matrix_power
+from learn2learn.data.transforms import NWays, KShots, LoadData
 
 from utils.alg_utils import EA, EA_online
 
@@ -493,8 +495,86 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     dset_loaders["Target-Imbalanced"] = Data.DataLoader(data_tar_imb, batch_size=train_bs * 3, shuffle=True,
                                                         drop_last=False)
 
+    # for meta/few-shot
+    if 'MAML' in args.method:
+        train_dataset = l2l.data.MetaDataset(data_src)
+        dset_loaders['source-meta'] = l2l.data.TaskDataset(train_dataset,
+                                           task_transforms=[
+                                               NWays(train_dataset, n=args.ways),
+                                               KShots(train_dataset, k=2 * args.shots),
+                                               LoadData(train_dataset),
+                                           ],
+                                           num_tasks=args.meta_batch_size)
+
     return dset_loaders
 
+"""
+def data_loader_meta(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
+    # multi-source meta cross-subject loader
+    dset_loaders = {}
+    train_bs = args.batch_size
+
+    Xt_copy = Xt
+    if args.align:
+        for i in range(len(Xs)):
+            Xs[i] = data_alignment(Xs[i], 1, args)
+        Xt = data_alignment(Xt, 1, args)
+
+    for i in range(len(Xs)):
+        Xs[i], Ys[i] = tr.from_numpy(Xs[i]).to(
+            tr.float32), tr.from_numpy(Ys[i].reshape(-1, )).to(tr.long)
+        Xs[i] = Xs[i].unsqueeze_(3)
+        if 'EEGNet' in args.backbone:
+            Xs[i] = Xs[i].permute(0, 3, 1, 2)
+
+    Xt, Yt = tr.from_numpy(Xt).to(
+        tr.float32), tr.from_numpy(Yt.reshape(-1, )).to(tr.long)
+    Xt = Xt.unsqueeze_(3)
+    if 'EEGNet' in args.backbone:
+        Xt = Xt.permute(0, 3, 1, 2)
+
+    Xt_copy = tr.from_numpy(Xt_copy).to(
+        tr.float32)
+    Xt_copy = Xt_copy.unsqueeze_(3)
+    if 'EEGNet' in args.backbone:
+        Xt_copy = Xt_copy.permute(0, 3, 1, 2)
+
+    sources_ms = []
+    for i in range(args.N - 1):
+        if args.data_env != 'local':
+            Xs[i], Ys[i] = Xs[i].cuda(), Ys[i].cuda()
+        source = Data.TensorDataset(Xs[i], Ys[i])
+        sources_ms.append(source)
+
+    if args.data_env != 'local':
+        Xt, Yt, Xt_copy = Xt.cuda(), Yt.cuda(), Xt_copy.cuda()
+
+    data_tar = Data.TensorDataset(Xt, Yt)
+
+    data_tar_online = Data.TensorDataset(Xt_copy, Yt)
+
+    # for TL test
+    dset_loaders["target"] = Data.DataLoader(data_tar, batch_size=train_bs, shuffle=True, drop_last=True)
+    dset_loaders["Target"] = Data.DataLoader(data_tar, batch_size=train_bs * 3, shuffle=False, drop_last=False)
+
+    # for online TL test
+    dset_loaders["Target-Online"] = Data.DataLoader(data_tar_online, batch_size=1, shuffle=False, drop_last=False)
+
+    # for multi-sources
+    loader_arr = []
+    for i in range(args.N - 1):
+        loader = Data.DataLoader(sources_ms[i], batch_size=train_bs, shuffle=True, drop_last=True)
+        loader_arr.append(loader)
+    dset_loaders["sources"] = loader_arr
+
+    loader_arr_S = []
+    for i in range(args.N - 1):
+        loader = Data.DataLoader(sources_ms[i], batch_size=train_bs, shuffle=False, drop_last=False)
+        loader_arr_S.append(loader)
+    dset_loaders["Sources"] = loader_arr_S
+
+    return dset_loaders
+"""
 
 def data_loader_multisource(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     # multi-source cross-subject loader

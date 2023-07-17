@@ -11,8 +11,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from xgboost import XGBClassifier
 
-
-
 import random
 import sys
 import os
@@ -203,7 +201,6 @@ def convert_label(labels, axis, threshold, minus1=False):
     return label_01
 
 
-
 def SML_soft(preds):
     """
     Parameters
@@ -255,8 +252,6 @@ def SML_soft_multiclass(preds):
     return pred
 
 
-
-
 def ml_multisource(dataset, info, align, approach, combine_strategy, cuda_device_id, args):
     X, y, num_subjects, paradigm, sample_rate, ch_num = data_loader(dataset)
     print('X, y, num_subjects, paradigm, sample_rate:', X.shape, y.shape, num_subjects, paradigm, sample_rate)
@@ -290,12 +285,17 @@ def ml_multisource(dataset, info, align, approach, combine_strategy, cuda_device
                 subj_pred, subj_model = ml_classifier(approach, True, subj_train_x_csp, subj_train_y, subj_test_x_csp, return_model=True)
                 subj_preds.append(subj_pred)
 
+
             subj_preds = np.stack(subj_preds)
-            print(subj_preds.shape)
-            print(similarity_weights.shape)
-            pred = np.dot(similarity_weights.reshape(similarity_weights.shape[1], -1), subj_preds)
-            print(pred.shape)
-            input('')
+
+            '''
+            # NNM
+            preds = []
+            for index in range(len(test_y)):
+                pred = np.dot(similarity_weights[index], subj_preds[:, index])
+                preds.append(pred)
+            pred = np.argmax(preds, axis=1)
+            '''
 
             '''
             # SML
@@ -305,11 +305,9 @@ def ml_multisource(dataset, info, align, approach, combine_strategy, cuda_device
                 pred = SML_soft(subj_preds[:, :, 1])
             '''
 
-            '''
             # averaging
-            #avg_pred = np.average(subj_preds, axis=0)
-            #pred = np.argmax(avg_pred, axis=1)
-            '''
+            avg_pred = np.average(subj_preds, axis=0)
+            pred = np.argmax(avg_pred, axis=1)
 
             subj_scores = np.round(accuracy_score(test_y, pred), 5)
             score = np.mean(subj_scores)
@@ -434,8 +432,7 @@ def backbone_net(args, return_type='y'):
 
 
 def NeuralNetworkMeasurement(test_x, args):
-    '''
-
+    """
     Parameters
     ----------
     test_x: test data of numpy array (num_samples, num_channels, num_timesamples)
@@ -443,10 +440,9 @@ def NeuralNetworkMeasurement(test_x, args):
     Returns
     -------
     weights: weights of source domains of numpy array (num_samples, num_source_domains)
-    '''
+    """
 
     args.class_num = args.N - 1
-    print(args.class_num)
     netF, netC = backbone_net(args, return_type='xy')
     if args.device != torch.device('cpu'):
         netF, netC = netF.cuda(), netC.cuda()
