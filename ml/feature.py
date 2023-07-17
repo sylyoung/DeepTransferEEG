@@ -218,6 +218,7 @@ def ml_cross(dataset, info, align, approach):
 
     if align:
         X = data_alignment(X, num_subjects)
+        return
 
     scores_arr = []
 
