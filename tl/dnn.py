@@ -14,6 +14,7 @@ from utils.network import backbone_net
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import fix_random_seed, cal_acc_comb, data_loader
+from utils.aug_utils import RandomStretch
 
 import gc
 import sys
@@ -51,6 +52,9 @@ def train_target(args):
             continue
 
         iter_num += 1
+
+        if "RSaug" in args.method:
+            inputs_source = RandomStretch(inputs_source, args.aug_ratio)
 
         features_source, outputs_source = base_network(inputs_source)
 
@@ -107,7 +111,7 @@ if __name__ == '__main__':
                                   time_sample_num=time_sample_num, sample_rate=sample_rate,
                                   N=N, chn=chn, class_num=class_num, paradigm=paradigm, data_name=data_name)
 
-        args.method = 'EEGNet'
+        args.method = 'EEGNet-RSaug'
         args.backbone = 'EEGNet'
 
         # whether to use EA
@@ -121,6 +125,9 @@ if __name__ == '__main__':
 
         # training epochs
         args.max_epoch = 100
+
+        # augmentation ratio
+        args.aug_ratio = 0.1
 
         # GPU device id
         try:

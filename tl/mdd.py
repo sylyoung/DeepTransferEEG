@@ -14,7 +14,7 @@ from utils.network import backbone_net
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader
-from utils.loss import CELabelSmooth_raw, Entropy, ReverseLayerF
+from utils.loss import ReverseLayerF
 
 import gc
 import sys

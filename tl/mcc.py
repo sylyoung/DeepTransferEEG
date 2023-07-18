@@ -15,7 +15,7 @@ from utils.network import backbone_net
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader, cal_auc_comb
-from utils.loss import ClassConfusionLoss, CELabelSmooth_raw
+from utils.loss import ClassConfusionLoss
 
 import gc
 import sys
