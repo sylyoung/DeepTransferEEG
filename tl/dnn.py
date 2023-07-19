@@ -96,7 +96,8 @@ def train_target(args):
 
 if __name__ == '__main__':
 
-    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014001-4']
+    #data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014001-4']
+    data_name_list = ['BCICompetition23']
 
     dct = pd.DataFrame(columns=['dataset', 'avg', 'std', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13'])
 
@@ -111,7 +112,7 @@ if __name__ == '__main__':
                                   time_sample_num=time_sample_num, sample_rate=sample_rate,
                                   N=N, chn=chn, class_num=class_num, paradigm=paradigm, data_name=data_name)
 
-        args.method = 'EEGNet-RSaug'
+        args.method = 'EEGNet'
         args.backbone = 'EEGNet'
 
         # whether to use EA

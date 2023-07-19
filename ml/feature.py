@@ -234,6 +234,7 @@ def ml_cross(dataset, info, align, approach):
             # classifier
             pred, model = ml_classifier(approach, False, train_x_csp, train_y, test_x_csp, return_model=True)
             score = np.round(accuracy_score(test_y, pred), 5)
+            print('score', np.round(score, 5))
 
         scores_arr.append(score)
     print('#' * 30)
