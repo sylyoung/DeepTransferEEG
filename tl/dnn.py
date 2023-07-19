@@ -53,9 +53,6 @@ def train_target(args):
 
         iter_num += 1
 
-        if "RSaug" in args.method:
-            inputs_source = RandomStretch(inputs_source, args.aug_ratio)
-
         features_source, outputs_source = base_network(inputs_source)
 
         classifier_loss = criterion(outputs_source, labels_source)
@@ -96,8 +93,7 @@ def train_target(args):
 
 if __name__ == '__main__':
 
-    #data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014001-4']
-    data_name_list = ['BCICompetition23']
+    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001', 'BNCI2014001-4']
 
     dct = pd.DataFrame(columns=['dataset', 'avg', 'std', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13'])
 
@@ -126,9 +122,6 @@ if __name__ == '__main__':
 
         # training epochs
         args.max_epoch = 100
-
-        # augmentation ratio
-        args.aug_ratio = 0.1
 
         # GPU device id
         try:
