@@ -32,7 +32,7 @@ def train_target(args):
 
     args.max_iter = args.max_epoch * len(dset_loaders["source"])
 
-    ad_net = AdversarialNetwork(args.feature_deep_dim, 32, 8)
+    ad_net = AdversarialNetwork(args.feature_deep_dim * args.class_num, 32, 8)
     if args.data_env != 'local':
         ad_net = ad_net.cuda()
     random_layer = RandomLayer([args.feature_deep_dim, args.class_num], args.feature_deep_dim)
