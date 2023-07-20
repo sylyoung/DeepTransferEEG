@@ -129,10 +129,7 @@ dmypy.json
 .pyre/
 
 .idea
-logs/
-runs/
 backup/
-data/
 multi_source.py
 dnn_multi_source.py
 domain_classifier.py
