@@ -14,7 +14,6 @@ from utils.network import backbone_net
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import fix_random_seed, cal_acc_comb, data_loader
-from utils.aug_utils import RandomStretch
 
 import gc
 import sys
