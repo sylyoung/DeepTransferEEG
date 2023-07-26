@@ -56,7 +56,7 @@ if __name__ == '__main__':
     BNCI2014001
     <Info | 8 non-empty values
      bads: []
-     ch_names: Fz, FC3, FC1, FCz, FC2, FC4, C5, C3, C1, Cz, C2, C4, C6, CP3, ...
+     ch_names: 'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz', 'P2', 'POz'
      chs: 22 EEG
      custom_ref_applied: False
      dig: 25 items (3 Cardinal, 22 EEG)
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     BNCI2014002
     <Info | 7 non-empty values
      bads: []
-     ch_names: EEG1, EEG2, EEG3, EEG4, EEG5, EEG6, EEG7, EEG8, EEG9, EEG10, ...
+     ch_names: 'EEG1', 'EEG2', 'EEG3', 'EEG4', 'EEG5', 'EEG6', 'EEG7', 'EEG8', 'EEG9', 'EEG10', 'EEG11', 'EEG12', 'EEG13', 'EEG14', 'EEG15'
      chs: 15 EEG
      custom_ref_applied: False
      highpass: 8.0 Hz
@@ -85,15 +85,15 @@ if __name__ == '__main__':
     BNCI2015001
     <Info | 8 non-empty values
      bads: []
-     ch_names: FC5, FC3, FC1, FCz, FC2, FC4, FC6, C5, C3, C1, Cz, C2, C4, C6, ...
-     chs: 64 EEG
+     ch_names: 'FC3', 'FCz', 'FC4', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP3', 'CPz', 'CP4'
+     chs: 13 EEG
      custom_ref_applied: False
-     dig: 67 items (3 Cardinal, 64 EEG)
+     dig: 16 items (3 Cardinal, 13 EEG)
      highpass: 8.0 Hz
      lowpass: 32.0 Hz
-     meas_date: 2009-08-12 16:15:00 UTC
-     nchan: 64
+     meas_date: unspecified
+     nchan: 13
      projs: []
-     sfreq: 160.0 Hz
+     sfreq: 512.0 Hz
     >
     '''
