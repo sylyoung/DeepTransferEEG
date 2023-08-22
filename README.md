@@ -1,7 +1,7 @@
 # Transfer Learning Algorithms for EEG-based BCI
 
 Welcome! This repo aims to achieve simple contemporary deep transfer learning for EEG analysis.  
-Also the official implementation of our paper "T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs" at IEEE TBME.
+The official implementation of our paper [`T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs`](https://ieeexplore.ieee.org/abstract/document/10210666) (**IEEE TBME, 2023**)
 
 ## Steps for Usage:
 
