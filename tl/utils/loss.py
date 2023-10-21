@@ -2,6 +2,7 @@
 # @Time    : 2023/07/14
 # @Author  : Siyang Li
 # @File    : loss.py
+# part of this code was originally implemented by Wen Zhang
 import numpy as np
 import torch as tr
 import torch.nn as nn
@@ -16,6 +17,102 @@ def Entropy(input_):
     entropy = -input_ * tr.log(input_ + epsilon)
     entropy = tr.sum(entropy, dim=1)
     return entropy
+
+class CELabelSmooth(nn.Module):
+    """Cross entropy loss with label smoothing regularizer.
+    Reference:
+    Szegedy et al. Rethinking the Inception Architecture for Computer Vision. CVPR 2016.
+    Equation: y = (1 - epsilon) * y + epsilon / K.
+    Args:
+        num_classes (int): number of classes.
+        epsilon (float): weight.
+    """
+
+    def __init__(self, num_classes, epsilon=0.1, use_gpu=True, reduction=True):
+        super(CELabelSmooth, self).__init__()
+        self.num_classes = num_classes
+        self.epsilon = epsilon
+        self.use_gpu = use_gpu
+        self.logsoftmax = nn.LogSoftmax(dim=1)
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        """
+        Args:
+            inputs: prediction matrix (before softmax) with shape (batch_size, num_classes)
+            targets: ground truth labels with shape (num_classes)
+        """
+        log_probs = self.logsoftmax(inputs)
+
+        # 加入mixup之后，原始标签已经是one hot的形式，这里不需要再变换
+        # targets = tr.zeros(log_probs.size()).scatter_(1, targets.unsqueeze(1).cpu(), 1)
+        if self.use_gpu: targets = targets.cuda()
+        targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes
+        loss = (- targets * log_probs).sum(dim=1)
+        if self.reduction:
+            return loss.mean()
+        else:
+            return loss
+
+
+class CELabelSmooth_raw(nn.Module):
+    """Cross entropy loss with label smoothing regularizer.
+    Reference:
+    Szegedy et al. Rethinking the Inception Architecture for Computer Vision. CVPR 2016.
+    Equation: y = (1 - epsilon) * y + epsilon / K.
+    Args:
+        num_classes (int): number of classes.
+        epsilon (float): weight.
+    """
+
+    def __init__(self, num_classes, epsilon=0.1, use_gpu=True, reduction=True):
+        super(CELabelSmooth_raw, self).__init__()
+        self.num_classes = num_classes
+        self.epsilon = epsilon
+        self.use_gpu = use_gpu
+        self.logsoftmax = nn.LogSoftmax(dim=1)
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        """
+        Args:
+            inputs: prediction matrix (before softmax) with shape (batch_size, num_classes)
+            targets: ground truth labels with shape (num_classes)
+        """
+        log_probs = self.logsoftmax(inputs)
+        targets = tr.zeros(log_probs.size()).scatter_(1, targets.unsqueeze(1).cpu(), 1)
+        if self.use_gpu: targets = targets.cuda()
+        targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes
+        loss = (- targets * log_probs).sum(dim=1)
+        if self.reduction:
+            return loss.mean()
+        else:
+            return loss
+
+
+class KnowledgeDistillationLoss(nn.Module):
+    def __init__(self, reduction='mean', alpha=-1.):
+        super().__init__()
+        self.reduction = reduction
+        self.alpha = alpha
+
+    def forward(self, inputs, targets, mask=None):
+        inputs = inputs.narrow(1, 0, targets.shape[1])
+        outputs = tr.log_softmax(inputs, dim=1)
+        labels = tr.softmax(targets * self.alpha, dim=1)
+
+        loss = (outputs * labels).mean(dim=1)
+        if mask is not None:
+            loss = loss * mask.float()
+
+        if self.reduction == 'mean':
+            outputs = -tr.mean(loss)
+        elif self.reduction == 'sum':
+            outputs = -tr.sum(loss)
+        else:
+            outputs = -loss
+
+        return outputs
 
 
 class ConsistencyLoss(nn.Module):
@@ -46,6 +143,72 @@ class ConsistencyLoss(nn.Module):
         pred2 = F.log_softmax(pred2, dim=dim)
         return (F.kl_div(pred1, m.detach(), reduction='batchmean') + F.kl_div(pred2, m.detach(),
                                                                               reduction='batchmean')) / 2
+
+
+class source_inconsistency_loss(nn.Module):
+    # source models inconsistency loss.
+    def __init__(self, th_max=0.1):
+        super(source_inconsistency_loss, self).__init__()
+        self.th_max = th_max
+
+    # 计算不同models在每个样本预测概率的每个类别上的方差，要求
+    def forward(self, prob):  # [4, 8, 4]
+        si_std = tr.std(prob, dim=1).mean(dim=1).mean(dim=0)
+        return si_std
+
+
+class BatchEntropyLoss(nn.Module):
+    """
+    Batch-entropy loss.
+    要求各源模型预测的各类别平均entropy的平均值要小，
+    而DECISION里面是加权之后的标签上各类别平均的entropy要小
+    差异就是计算entropy先还是算类别均值先
+    """
+
+    def __init__(self):
+        super(BatchEntropyLoss, self).__init__()
+
+    def forward(self, prob):  # prob: [4, 8, 4]
+        batch_entropy = F.softmax(prob, dim=2).mean(dim=0)
+        batch_entropy = batch_entropy * (-batch_entropy.log())
+        batch_entropy = -batch_entropy.sum(dim=1)
+        loss = batch_entropy.mean()
+        return loss, batch_entropy
+
+
+class InstanceEntropyLoss(nn.Module):
+    """
+    Instance-entropy loss.
+    """
+
+    def __init__(self):
+        super(InstanceEntropyLoss, self).__init__()
+
+    def forward(self, prob):
+        instance_entropy = F.softmax(prob, dim=2) * F.log_softmax(prob, dim=2)
+        instance_entropy = -1.0 * instance_entropy.sum(dim=2)
+        instance_entropy = instance_entropy.mean(dim=0)
+        loss = instance_entropy.mean()
+        return loss, instance_entropy
+
+
+class InformationMaximizationLoss(nn.Module):
+    """
+    Information maximization loss.
+    """
+
+    def __init__(self):
+        super(InformationMaximizationLoss, self).__init__()
+
+    def forward(self, pred_prob, epsilon):
+        softmax_out = nn.Softmax(dim=1)(pred_prob)
+        ins_entropy_loss = tr.mean(Entropy(softmax_out))
+        msoftmax = softmax_out.mean(dim=0)
+        class_entropy_loss = tr.sum(-msoftmax * tr.log(msoftmax + epsilon))
+        im_loss = ins_entropy_loss - class_entropy_loss
+
+        return im_loss
+
 
 
 # =============================================================DAN Function=============================================
