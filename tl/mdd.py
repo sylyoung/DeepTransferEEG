@@ -9,11 +9,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
+
 import torch.nn.functional as F
-from utils.network import backbone_net
+from utils.network import backbone_net, feat_classifier
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
-from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader
+from utils.utils import fix_random_seed, cal_acc_comb, data_loader_sdaTL
 from utils.loss import ReverseLayerF
 
 import gc
@@ -32,7 +33,9 @@ def train_target(args):
 
     args.max_iter = args.max_epoch * len(dset_loaders["source"])
 
-    ad_net = network.feat_classifier(type=args.layer, class_num=args.class_num, hidden_dim=args.feature_deep_dim).cuda()
+    ad_net = feat_classifier(type=args.layer, class_num=args.class_num, hidden_dim=args.feature_deep_dim).cuda()
+    if args.data_env != 'local':
+        ad_net = ad_net.cuda()
 
     criterion = nn.CrossEntropyLoss()
 
