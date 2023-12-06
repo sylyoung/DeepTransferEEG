@@ -30,6 +30,8 @@ python ./tl/dnn.py
 
 Note that such source models serve as EEGNet baselines, and are also used in SFUDA and TTA approaches as the initializations. So to save time for TTA/SFUDA for target subject adaptation, it is better to have them ready first.  
 
+Note also that we did not provide non-EA models, and please change code accordingly for TTA approaches under train_target() function when loading pretrained weights.
+
 #### 4. Transfer Learning for Target Subject
 
 To test the T-TIME algorithm, run   
