@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2023/01/11
+# @Time    : 2024/01/10
 # @Author  : Siyang Li
 # @File    : cdan.py
 import numpy as np
@@ -32,12 +32,15 @@ def train_target(args):
 
     args.max_iter = args.max_epoch * len(dset_loaders["source"])
 
-    ad_net = AdversarialNetwork(args.feature_deep_dim * args.class_num, 32, 8)
+    if args.use_random_layer:
+        ad_net = AdversarialNetwork(args.feature_deep_dim, 32, 8)
+        random_layer = RandomLayer([args.feature_deep_dim, args.class_num], args.feature_deep_dim,
+                                   use_cuda=args.data_env != 'local')
+    else:
+        ad_net = AdversarialNetwork(args.feature_deep_dim * args.class_num, 32, 8)
+        random_layer = None
     if args.data_env != 'local':
         ad_net = ad_net.cuda()
-    random_layer = RandomLayer([args.feature_deep_dim, args.class_num], args.feature_deep_dim)
-    if args.data_env != 'local':
-        random_layer = random_layer.cuda()
 
     criterion = nn.CrossEntropyLoss()
 
@@ -137,6 +140,9 @@ if __name__ == '__main__':
 
         # learning rate
         args.lr = 0.001
+
+        # Multilinear Conditioning (Flase) or Randomized Multilinear Conditioning (True)
+        args.use_random_layer = False
 
         # train batch size
         args.batch_size = 32
