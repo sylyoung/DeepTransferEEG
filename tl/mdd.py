@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2023/01/11
+# @Time    : 2024/01/16
 # @Author  : Siyang Li
 # @File    : mdd.py
+# former implementation https://github.com/thuml/MDD/blob/master/model/MDD.py logloss_tgt would reduce to NaN?
+# currently using https://github.com/thuml/Transfer-Learning-Library/blob/master/examples/domain_adaptation/image_classification/mdd.py implementation
 import numpy as np
 import argparse
 import os
@@ -9,13 +11,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
-
 import torch.nn.functional as F
 from utils.network import backbone_net, feat_classifier
 from utils.LogRecord import LogRecord
 from utils.dataloader import read_mi_combine_tar
-from utils.utils import fix_random_seed, cal_acc_comb, data_loader_sdaTL
+from utils.utils import lr_scheduler_full, fix_random_seed, cal_acc_comb, data_loader
 from utils.loss import ReverseLayerF
+from utils.loss import ClassificationMarginDisparityDiscrepancy, MDDClassifier
 
 import gc
 import sys
@@ -33,21 +35,28 @@ def train_target(args):
 
     args.max_iter = args.max_epoch * len(dset_loaders["source"])
 
-    ad_net = feat_classifier(type=args.layer, class_num=args.class_num, hidden_dim=args.feature_deep_dim).cuda()
-    if args.data_env != 'local':
-        ad_net = ad_net.cuda()
-
     criterion = nn.CrossEntropyLoss()
 
-    optimizer_f = optim.SGD(netF.parameters(), lr=args.lr, momentum=0.9)
-    optimizer_c = optim.SGD(netC.parameters(), lr=args.lr, momentum=0.9)
-    optimizer_d = optim.SGD(ad_net.parameters(), lr=args.lr, momentum=0.9)
+    optimizer_f = optim.Adam(netF.parameters(), lr=args.lr)
+    optimizer_c = optim.Adam(netC.parameters(), lr=args.lr)
 
     max_iter = args.max_epoch * len(dset_loaders["source"])
     interval_iter = max_iter // args.max_epoch
     args.max_iter = max_iter
     iter_num = 0
     base_network.train()
+
+    mdd = ClassificationMarginDisparityDiscrepancy(args.margin)
+    if args.data_env != 'local':
+        mdd = mdd.cuda()
+    mdd.train()
+
+    mdd_classifier = MDDClassifier(backbone_dim=args.feature_deep_dim, num_classes=args.class_num, bottleneck_dim=args.bottleneck_dim)
+    if args.data_env != 'local':
+        mdd_classifier = mdd_classifier.cuda()
+    mdd_classifier.train()
+
+    optimizer_m = optim.Adam(mdd_classifier.parameters(), lr=args.lr)
 
     while iter_num < max_iter:
         try:
@@ -66,41 +75,29 @@ def train_target(args):
 
         iter_num += 1
 
-        inputs_source, inputs_target, labels_source = inputs_source.cuda(), inputs_target.cuda(), labels_source.cuda()
+        if args.data_env != 'local':
+            inputs_source, inputs_target, labels_source = inputs_source.cuda(), inputs_target.cuda(), labels_source.cuda()
         features_source, outputs_source = base_network(inputs_source)
         features_target, outputs_target = base_network(inputs_target)
 
-        p = float(iter_num) / max_iter
-        alpha = 2. / (1. + np.exp(-10 * p)) - 1
-        reverse_source, reverse_target = ReverseLayerF.apply(features_source, alpha), ReverseLayerF.apply(
-            features_target,
-            alpha)
-        domain_output_s = ad_net(reverse_source)
-
         classifier_loss = criterion(outputs_source, labels_source)
 
-        args.srcweight = 3
+        x = torch.cat((features_source, features_target), dim=0)
+        outputs, outputs_adv = mdd_classifier(x)
+        y_s, y_t = outputs.chunk(2, dim=0)
+        y_s_adv, y_t_adv = outputs_adv.chunk(2, dim=0)
 
-        target_adv = outputs_target.max(1)[1]
-        target_adv_src = target_adv.narrow(0, 0, labels_source.size(0))
-        target_adv_tgt = target_adv.narrow(0, labels_source.size(0), inputs_source.size(0) - labels_source.size(0))
+        transfer_loss = -mdd(y_s, y_s_adv, y_t, y_t_adv)
 
-        classifier_loss_adv_src = criterion(domain_output_s.narrow(0, 0, labels_source.size(0)), target_adv_src)
-
-        logloss_tgt = torch.log(1 - F.softmax(domain_output_s.narrow(0, labels_source.size(0), inputs_source.size(0) - labels_source.size(0)), dim=1))
-        classifier_loss_adv_tgt = F.nll_loss(logloss_tgt, target_adv_tgt)
-
-        transfer_loss = args.srcweight * classifier_loss_adv_src + classifier_loss_adv_tgt
-
-        total_loss = classifier_loss + transfer_loss
+        total_loss = classifier_loss + transfer_loss * args.alignment_weight
 
         optimizer_f.zero_grad()
         optimizer_c.zero_grad()
-        optimizer_d.zero_grad()
+        optimizer_m.zero_grad()
         total_loss.backward()
         optimizer_f.step()
         optimizer_c.step()
-        optimizer_d.step()
+        optimizer_m.step()
 
         if iter_num % interval_iter == 0 or iter_num == max_iter:
             base_network.eval()
@@ -114,6 +111,15 @@ def train_target(args):
 
     print('Test Acc = {:.2f}%'.format(acc_t_te))
 
+    print('saving model...')
+
+    if args.align:
+        torch.save(base_network.state_dict(),
+                   './runs/' + str(args.data_name) + '/' + str(args.method) + '_S' + str(args.idt) + '_seed' + str(args.SEED) + '.ckpt')
+    else:
+        torch.save(base_network.state_dict(),
+                   './runs/' + str(args.data_name) + '/' + str(args.method) + '_S' + str(args.idt) + '_seed' + str(args.SEED) + '_noEA' + '.ckpt')
+
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -122,20 +128,22 @@ def train_target(args):
 
 if __name__ == '__main__':
 
-    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2015001']
-    dct = pd.DataFrame(
-        columns=['dataset', 'avg', 'std', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11',
-                 's12', 's13'])
+    data_name_list = ['BNCI2014001', 'BNCI2014002', 'BNCI2014004', 'BNCI2015001', 'MI1-7']
+
+    dct = pd.DataFrame(columns=['dataset', 'avg', 'std', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13'])
 
     for data_name in data_name_list:
-
+        # N: number of subjects, chn: number of channels
         if data_name == 'BNCI2014001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 2, 1001, 250, 144, 248
         if data_name == 'BNCI2014002': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 14, 15, 2, 2561, 512, 100, 640
+        if data_name == 'BNCI2014004': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 3, 2, 1126, 250, 120, 280
         if data_name == 'BNCI2015001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 12, 13, 2, 2561, 512, 200, 640
+        if data_name == 'BNCI2014001-4': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 9, 22, 4, 1001, 250, 288, 248
+        if data_name == 'MI1-7': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 7, 59, 2, 750, 250, 200, 184
 
         args = argparse.Namespace(feature_deep_dim=feature_deep_dim, trial_num=trial_num, layer='wn',
                                   time_sample_num=time_sample_num, sample_rate=sample_rate,
-                                  N=N, chn=chn, class_num=class_num, paradigm=paradigm)
+                                  N=N, chn=chn, class_num=class_num, paradigm=paradigm, data_name=data_name)
 
         args.method = 'MDD'
         args.backbone = 'EEGNet'
@@ -146,13 +154,29 @@ if __name__ == '__main__':
         # learning rate
         args.lr = 0.001
 
-        # train batch size
-        args.batch_size = 32
-        if paradigm == 'ERP':
-            args.batch_size = 256
+        # MDD loss weight
+        args.alignment_weight = 1.0
+
+        # MDD margin
+        args.margin = 4.0
+
+        # MDD bottleneck (MLP hidden layer) dimension
+        args.bottleneck_dim = 50
+
+        # alignment loss weight
+        args.loss_trade_off = 1.0
+
+        # softmax temperature
+        args.t_mcc = 2
+
+        # learning rate
+        args.lr = 0.001
+
+        # train batch size, also target train batch size
+        args.batch_size = 10
 
         # training epochs
-        args.max_epoch = 100
+        args.max_epoch = 50
 
         # GPU device id
         try:
