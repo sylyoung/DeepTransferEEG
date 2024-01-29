@@ -56,7 +56,7 @@ Note that ensemble is seperated. For ensemble results, after running T-TIME, run
 python ./tl/ttime_ensemble.py
 ```   
 
-For CSP approach, it is not a deep learning approach and is seperated from the others. Run   
+For the machine learning approaches without neural network models, e.g., CSP. Run   
 ```sh 
 python ./ml/feature.py
 ```
@@ -92,17 +92,18 @@ Please contact me at syoungli@hust.edu.cn or lsyyoungll@gmail.com for any questi
 
 ## Citation
 
-If you find this repo helpful, please consider citing:
+If you find this repo helpful, please cite our work:
 ```
-@ARTICLE{10210666,
-  author={Li, Siyang and Wang, Ziwei and Luo, Hanbin and Ding, Lieyun and Wu, Dongrui},
-  journal={IEEE Transactions on Biomedical Engineering}, 
-  title={T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs}, 
-  year={2023},
-  volume={},
-  number={},
-  pages={1-11},
-  doi={10.1109/TBME.2023.3303289}}
+@Article{Li2024,
+  author  = {Li, Siyang and Wang, Ziwei and Luo, Hanbin and Ding, Lieyun and Wu, Dongrui},
+  journal = {IEEE Transactions on Biomedical Engineering},
+  title   = {{T}-{TIME}: Test-Time Information Maximization Ensemble for Plug-and-Play {BCI}s},
+  year    = {2024},
+  number  = {2},
+  pages   = {423-432},
+  volume  = {71},
+  doi     = {10.1109/TBME.2023.3303289},
+}
 ```
 
 ## Acknowledgements
