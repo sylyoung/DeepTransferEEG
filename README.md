@@ -70,20 +70,21 @@ Most hyperparameters/configurations of approaches/experiments are under the *arg
 
 #### *. T-TIME
 #### 0. EA
-#### 1. EEGNet
-#### 2. DAN
-#### 3. JAN 
-#### 4. DANN
-#### 5. CDAN
-#### 6. MDD
-#### 7. MCC
-#### 8. SHOT
-#### 9. BN-adapt
-#### 10. Tent
-#### 11. PL
-#### 12. T3A
-#### 13. CoTTA
-#### 14. SAR
+#### 1. DAN
+#### 2. JAN 
+#### 3. DANN
+#### 4. CDAN
+#### 5. MDD
+#### 6. MCC
+#### 7. SHOT
+#### 8. BN-adapt
+#### 9. Tent
+#### 10. PL
+#### 11. T3A
+#### 12. CoTTA
+#### 13. SAR
+#### 14. ISFDA
+#### 15. DELTA
 #### More to come!
 
 ## Contact
