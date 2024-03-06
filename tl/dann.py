@@ -31,7 +31,7 @@ def train_target(args):
 
     args.max_iter = args.max_epoch * len(dset_loaders["source"])
 
-    ad_net = feat_classifier(type=args.layer, class_num=args.class_num, hidden_dim=args.feature_deep_dim).cuda()
+    ad_net = feat_classifier(type=args.layer, class_num=2, hidden_dim=args.feature_deep_dim).cuda()
 
     criterion = nn.CrossEntropyLoss()
 
