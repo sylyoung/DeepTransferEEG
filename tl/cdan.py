@@ -37,7 +37,7 @@ def train_target(args):
         random_layer = RandomLayer([args.feature_deep_dim, args.class_num], args.feature_deep_dim,
                                    use_cuda=args.data_env != 'local')
     else:
-        ad_net = AdversarialNetwork(args.feature_deep_dim * args.class_num, 32, 8)
+        ad_net = AdversarialNetwork(args.feature_deep_dim * 2, 32, 8)
         random_layer = None
     if args.data_env != 'local':
         ad_net = ad_net.cuda()
