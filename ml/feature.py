@@ -239,7 +239,7 @@ def ml_cross(dataset, info, align, approach):
         scores_arr.append(score)
     print('#' * 30)
     for i in range(len(scores_arr)):
-        scores_arr[i] = np.round(scores_arr[i] * 100)
+        scores_arr[i] = np.round(scores_arr[i] * 100, 5)
     print('sbj scores', scores_arr)
     print('avg', np.round(np.average(scores_arr), 5))
 
