@@ -87,6 +87,10 @@ Most hyperparameters/configurations of approaches/experiments are under the *arg
 #### 15. DELTA
 #### More to come!
 
+## EA
+
+If you just want to know how Euclidean Alignment was done, refer to 
+
 ## Contact
 
 Please contact me at syoungli@hust.edu.cn or lsyyoungll@gmail.com for any questions regarding the paper, and use Issues for any questions regarding the code.

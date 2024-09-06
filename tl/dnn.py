@@ -66,6 +66,9 @@ def train_target(args):
             base_network.eval()
 
             acc_t_te, _ = cal_acc_comb(dset_loaders["Target"], base_network, args=args)
+            # comment out last line and uncomment the next line for IEA results instead of offline EA results
+            # acc_t_te, _ = cal_acc_comb(dset_loaders["Target-Online-Prealigned"], base_network, args=args)
+
             log_str = 'Task: {}, Iter:{}/{}; Acc = {:.2f}%'.format(args.task_str, int(iter_num // len(dset_loaders["source"])), int(max_iter // len(dset_loaders["source"])), acc_t_te)
             args.log.record(log_str)
             print(log_str)
