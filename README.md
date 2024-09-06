@@ -3,7 +3,11 @@
 Welcome! This repo aims to achieve simple contemporary deep transfer learning for EEG analysis, specifically brain-computer interface (BCI) applications.
 The official implementation of our paper [`T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs`](https://ieeexplore.ieee.org/abstract/document/10210666) (**IEEE TBME, 2023**)
 
-**News**: The implementation for CR and DPL (our papers currently under review) will be updated once when the papers are accepted. They are all implemented under this identical framework for easier reproduction.
+**News**: The implementation for DPL (paper currently under review) will be updated once when the papers are accepted. They are all implemented under this identical framework for easier reproduction.
+
+## EA
+
+If you just want to know how Euclidean Alignment was done, go [here](https://github.com/sylyoung/DeepTransferEEG/blob/main/tl/utils/utils.py#L475)
 
 ## Steps for Usage:
 
@@ -86,10 +90,6 @@ Most hyperparameters/configurations of approaches/experiments are under the *arg
 #### 14. ISFDA
 #### 15. DELTA
 #### More to come!
-
-## EA
-
-If you just want to know how Euclidean Alignment was done, refer to 
 
 ## Contact
 

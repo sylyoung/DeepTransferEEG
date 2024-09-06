@@ -473,6 +473,7 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
         # For other TL TTA approaches, IEA is done on-the-fly at test time
 
         # Online(Incremental) EA
+        # Much proper way to do EA for target subject considering online BCIs
         # For offline EA, refer to tl/utils/alg_utils.py line12
         Xt_aligned = []
         R = 0
