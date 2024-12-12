@@ -33,7 +33,7 @@ def obtain_label(loader, netF, netC, args):
             data = next(iter_test)
             inputs = data[0]
             labels = data[1]
-            inputs = inputs.cuda()
+            inputs = inputs#.cuda()
             feas = netF(inputs)
             outputs = netC(feas)
             if start_test:
@@ -182,8 +182,8 @@ def train_target(args):
     netC.eval()
     netF.train()
 
-    '''
-    # SHOT-original, commented out for SHOT-IM
+
+    # SHOT-original
     for k, v in netC.named_parameters():
         v.requires_grad = False
 
@@ -196,8 +196,10 @@ def train_target(args):
 
     optimizer = optim.Adam(param_group)
     optimizer = op_copy(optimizer)
-    '''
-    optimizer = optim.Adam(netF.parameters(), lr=args.lr)
+
+
+    # SHOT-IM
+    # optimizer = optim.Adam(netF.parameters(), lr=args.lr)
 
     max_iter = args.max_epoch * len(dset_loaders["target"])
     #max_iter = args.max_epoch * len(dset_loaders["target-Imbalanced"])
@@ -237,7 +239,7 @@ def train_target(args):
 
         # loss definition
         if args.cls_par > 0:
-            #pred = mem_label[tar_idx].long()
+            pred = mem_label[tar_idx].long()
 
             beta = 0.8
             py, y_prime = F.softmax(outputs_test, dim=-1).max(1)
@@ -302,7 +304,7 @@ if __name__ == '__main__':
         if data_name == 'BNCI2015001': paradigm, N, chn, class_num, time_sample_num, sample_rate, trial_num, feature_deep_dim = 'MI', 12, 13, 2, 2561, 512, 200, 640
 
         args = argparse.Namespace(feature_deep_dim=feature_deep_dim, lr=0.001, lr_decay1=0.1, lr_decay2=1.0,
-                                  ent=True, gent=True, cls_par=0, ent_par=1.0, epsilon=1e-05, layer='wn', interval=5,
+                                  ent=True, gent=True, cls_par=1., ent_par=1.0, epsilon=1e-05, layer='wn', interval=5,
                                   trial_num=trial_num, time_sample_num=time_sample_num, sample_rate=sample_rate,
                                   N=N, chn=chn, class_num=class_num, smooth=0, threshold=0, distance='cosine',
                                   cov_type='oas', paradigm=paradigm, data_name=data_name)
