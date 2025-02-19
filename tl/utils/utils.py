@@ -486,7 +486,7 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
             R = (R * num_samples + cov) / (num_samples + 1)
             num_samples += 1
             sqrtRefEA = fractional_matrix_power(R, -0.5)
-            # transform the original trial, and use all latter algorithms only use the transformed data
+            # transform the original trial. All latter algorithms only use the transformed data as input
             curr_aligned = np.dot(sqrtRefEA, curr)
             Xt_aligned.append(curr_aligned)
         Xt_aligned = np.array(Xt_aligned)
