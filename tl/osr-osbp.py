@@ -21,7 +21,8 @@ import json
 from utils.network import backbone_net
 from utils.dataloader import read_mi_combine_tar
 from utils.utils import fix_random_seed, cal_acc_comb, data_loader, data_alignment
-from utils.metrics import auroc, oscr, closed_set_accuracy, macro_f1_with_unknown, auin, dtacc
+from utils.metrics import compute_auroc, compute_oscr, compute_closed_set_accuracy, compute_macro_f1, \
+    compute_auin, compute_auout, compute_dtacc, compute_filtered_accuracy, accuracy_score
 
 
 mne.set_log_level('warning')
