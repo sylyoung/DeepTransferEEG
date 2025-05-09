@@ -1,235 +1,67 @@
 import numpy as np
 import torch
-import torch.nn as nn
 from scipy import linalg
 from scipy.stats import entropy
 
 from sklearn.metrics import (
-    roc_auc_score, precision_recall_curve, auc, f1_score, accuracy_score, average_precision_score, confusion_matrix
+    roc_auc_score, f1_score, accuracy_score, average_precision_score, roc_curve
 )
 
 
-def compute_auroc(y_confidence, is_known):
-    """
-    Compute AUROC for distinguishing known (in-distribution) and unknown (out-of-distribution) samples.
+def compute_auroc(y_confidence, labels, novel_class_label=-1):
 
-    Args:
-        y_confidence (array-like): Confidence scores (e.g., max softmax probabilities) for all samples.
-        is_known (array-like): Boolean array indicating if each sample is known (in-distribution).
-
-    Returns:
-        float: AUROC score.
-    """
-    return roc_auc_score(is_known, y_confidence) * 100
-
-def compute_oscr(x1, x2, pred, labels):
-
-    """
-    :param x1: open set score for each known class sample (B_k,)
-    :param x2: open set score for each unknown class sample (B_u,)
-    :param pred: predicted class for each known class sample (B_k,)
-    :param labels: correct class for each known class sample (B_k,)
-    :return: Open Set Classification Rate
-    """
-
-    x1, x2 = -x1, -x2
-
-    # x1, x2 = np.max(pred_k, axis=1), np.max(pred_u, axis=1)
-    # pred = np.argmax(pred_k, axis=1)
-
-    correct = (pred == labels)
-    m_x1 = np.zeros(len(x1))
-    m_x1[pred == labels] = 1
-    k_target = np.concatenate((m_x1, np.zeros(len(x2))), axis=0)
-    u_target = np.concatenate((np.zeros(len(x1)), np.ones(len(x2))), axis=0)
-    predict = np.concatenate((x1, x2), axis=0)
-    n = len(predict)
-
-    # Cutoffs are of prediction values
-
-    CCR = [0 for x in range(n + 2)]
-    FPR = [0 for x in range(n + 2)]
-
-    idx = predict.argsort()
-
-    s_k_target = k_target[idx]
-    s_u_target = u_target[idx]
-
-    for k in range(n - 1):
-        CC = s_k_target[k + 1:].sum()
-        FP = s_u_target[k:].sum()
-
-        # True	Positive Rate
-        CCR[k] = float(CC) / float(len(x1))
-        # False Positive Rate
-        FPR[k] = float(FP) / float(len(x2))
-
-    CCR[n] = 0.0
-    FPR[n] = 0.0
-    CCR[n + 1] = 1.0
-    FPR[n + 1] = 1.0
-
-    # Positions of ROC curve (FPR, TPR)
-    ROC = sorted(zip(FPR, CCR), reverse=True)
-
-    OSCR = 0
-
-    # Compute AUROC Using Trapezoidal Rule
-    for j in range(n + 1):
-        h = ROC[j][0] - ROC[j + 1][0]
-        w = (ROC[j][1] + ROC[j + 1][1]) / 2.0
-
-        OSCR = OSCR + h * w
-
-    print(f'OSCR: {OSCR}')
-
-    return OSCR
-
-def compute_closed_set_accuracy(y_pred, y_true, is_known):
-    """
-    Compute accuracy on known samples.
-
-    Args:
-        y_pred (array-like): Predicted labels for all samples.
-        y_true (array-like): True labels for all samples.
-        is_known (array-like): Boolean array indicating known samples.
-
-    Returns:
-        float: Closed set accuracy.
-    """
-    return accuracy_score(y_true[is_known], y_pred[is_known]) * 100
+    is_ood = (labels == novel_class_label)
+    return roc_auc_score(is_ood, -y_confidence) * 100
 
 
-def compute_macro_f1(y_true_all, y_pred_all):
-    """
-    Compute macro F1-score including the unknown class.
-
-    Args:
-        y_true_all (array-like): True labels for all samples (including unknown).
-        y_pred_all (array-like): Predicted labels for all samples (including unknown).
-
-    Returns:
-        float: Macro-averaged F1-score.
-    """
-    labels = np.unique(np.concatenate([y_true_all, y_pred_all]))
-    return f1_score(y_true_all, y_pred_all, average='macro', labels=labels) * 100
+def compute_oscr(y_confidence, labels, pred, novel_class_label=-1):
+    is_ood = (labels == novel_class_label)
+    fpr, tpr, _ = roc_curve(is_ood, -y_confidence)
+    oscr_auc = np.trapz(tpr, fpr)
+    return oscr_auc * 100
 
 
-def compute_auin(y_confidence, is_known):
-    """
-    Compute AUIN (Area Under In-distribution PR curve).
-
-    Args:
-        y_confidence (array-like): Confidence scores for all samples.
-        is_known (array-like): Boolean array indicating known samples.
-
-    Returns:
-        float: AUIN score.
-    """
-    return average_precision_score(is_known, y_confidence) * 100
+def compute_closed_set_accuracy(y_pred, y_true, novel_class_label=-1):
+    id_mask = (y_true != novel_class_label)
+    return accuracy_score(y_true[id_mask], y_pred[id_mask]) * 100
 
 
-def compute_auout(y_confidence, is_known):
-    """
-    Compute AUOUT (Area Under Out-of-distribution PR curve).
-
-    Args:
-        y_confidence (array-like): Confidence scores for all samples.
-        is_known (array-like): Boolean array indicating known samples.
-
-    Returns:
-        float: AUOUT score.
-    """
-    return average_precision_score(~is_known, 1 - np.asarray(y_confidence)) * 100
+def compute_macro_f1(y_true, y_pred, novel_class_label=-1):
+    return f1_score(y_true, y_pred, average='macro') * 100
 
 
-def compute_dtacc(y_confidence, is_known, y_true, y_pred):
-    """
-    Compute maximum detection accuracy over all thresholds.
+def compute_auin(y_confidence, labels, novel_class_label=-1):
+    is_ood = (labels == novel_class_label)
+    return average_precision_score(is_ood, -y_confidence) * 100
 
-    Args:
-        y_confidence (array-like): Confidence scores for all samples.
-        is_known (array-like): Boolean array indicating known samples.
-        y_true (array-like): True labels for all samples.
-        y_pred (array-like): Predicted labels for all samples.
 
-    Returns:
-        float: Maximum detection accuracy.
-    """
-    y_confidence = np.asarray(y_confidence)
-    is_known = np.asarray(is_known)
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
+def compute_auout(y_confidence, labels, novel_class_label=-1):
+    is_id = (labels != novel_class_label)
+    return average_precision_score(is_id, y_confidence) * 100
 
-    known_mask = is_known
-    y_conf_known = y_confidence[known_mask]
-    y_conf_unknown = y_confidence[~known_mask]
-    y_true_known = y_true[known_mask]
-    y_pred_known = y_pred[known_mask]
 
-    n_known = len(y_true_known)
-    n_unknown = len(y_conf_unknown)
-    n_total = n_known + n_unknown
+def compute_dtacc(y_confidence, labels, novel_class_label=-1):
+    is_ood = (labels == novel_class_label)
+    thresholds = np.sort(np.unique(y_confidence))[::-1]
 
-    if n_total == 0:
-        return 0.0
-
-    # Precompute correctness for known samples
-    correct_known = (y_pred_known == y_true_known)
-    # Sort all confidence scores descending
-    thresholds = np.sort(y_confidence)[::-1]
-
-    max_acc = 0.0
+    max_acc = 0
     for t in thresholds:
-        # Correct accepted known
-        accepted = y_conf_known >= t
-        correct_acc = np.sum(correct_known[accepted])
-
-        # Correct rejected unknown
-        rejected_unk = np.sum(y_conf_unknown < t)
-
-        acc = (correct_acc + rejected_unk) / n_total
+        pred_ood = (y_confidence <= t)
+        acc = np.mean(pred_ood == is_ood)
         if acc > max_acc:
             max_acc = acc
-
     return max_acc * 100
 
 
-def compute_filtered_accuracy(y_true, y_pred, src_class, novel_class_label=-1):
-    """
-    Compute classification accuracy after filtering out:
-    1. Samples not in src_class (ground truth unknown samples).
-    2. Samples predicted as novel class (out-of-distribution).
+def compute_fpr95(y_confidence, labels, novel_class_label=-1):
+    is_ood = (labels == novel_class_label)
+    fpr, tpr, _ = roc_curve(is_ood, -y_confidence)
 
-    Args:
-        y_true (array-like): True labels for all samples.
-        y_pred (array-like): Predicted labels for all samples.
-        src_class (list): List of known classes (e.g., [0, 1]).
-        novel_class_label (int): Label used to indicate predicted novel class (default: -1).
-
-    Returns:
-        float: Filtered classification accuracy.
-    """
-    # Convert inputs to numpy arrays
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
-
-    # Filter out samples not in src_class (ground truth unknown samples)
-    known_mask = np.isin(y_true, src_class)
-
-    # Filter out samples predicted as novel class
-    predicted_known_mask = (y_pred != novel_class_label)
-
-    # Combine both masks
-    final_mask = known_mask & predicted_known_mask
-
-    # If no samples remain, return 0.0
-    if np.sum(final_mask) == 0:
-        return 0.0
-
-    # Compute accuracy on the remaining samples
-    filtered_accuracy = np.mean(y_true[final_mask] == y_pred[final_mask])
-    return filtered_accuracy * 100
+    # Find first threshold where TPR >= 95%
+    tpr_95_idx = np.where(tpr >= 0.95)[0]
+    if len(tpr_95_idx) == 0:
+        return 1.0  # Worst case
+    return fpr[tpr_95_idx[0]] * 100
 
 
 # https://github.com/sbarratt/inception-score-pytorch/blob/master/inception_score.py

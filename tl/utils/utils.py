@@ -442,11 +442,13 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
         Xs = data_alignment(Xs, args.N - 1, args)
         Xt = data_alignment(Xt, 1, args)
 
+    #  (5000, channel, timesample)
+    import torch as tr
     Xs, Ys = tr.from_numpy(Xs).to(
-        tr.float32), tr.from_numpy(Ys.reshape(-1, )).to(tr.long)
-    Xs = Xs.unsqueeze_(3)
+        tr.float32), tr.from_numpy(Ys.reshape(-1, )).to(tr.long)   # labels (5000, )
+    Xs = Xs.unsqueeze_(3)      #  (5000, channel, timesample, 1)
     if 'EEGNet' in args.backbone:
-        Xs = Xs.permute(0, 3, 1, 2)
+        Xs = Xs.permute(0, 3, 1, 2)    #  (5000, 1, channel, timesample)
 
     Xt, Yt = tr.from_numpy(Xt).to(
         tr.float32), tr.from_numpy(Yt.reshape(-1, )).to(tr.long)
@@ -461,7 +463,7 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
     data_tar = Data.TensorDataset(Xt, Yt)
 
     # for TL train
-    dset_loaders["source"] = Data.DataLoader(data_src, batch_size=train_bs, shuffle=True, drop_last=True)
+    dset_loaders["source"] = Data.DataLoader(data_src, batch_size=train_bs, shuffle=True, drop_last=True)  # sample_size=500 batch_size=32 15  500 % 32 = 2
     dset_loaders["target"] = Data.DataLoader(data_tar, batch_size=train_bs, shuffle=True, drop_last=True)
 
     # for TL test
@@ -474,7 +476,7 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
 
         # Online(Incremental) EA
         # Much proper way to do EA for target subject considering online BCIs
-        # For offline EA, refer to tl/utils/alg_utils.py line12
+        # For offline EA and SPD-safe implementation, refer to tl/utils/alg_utils.py
         Xt_aligned = []
         R = 0
         num_samples = 0
