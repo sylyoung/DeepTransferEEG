@@ -474,7 +474,7 @@ def data_loader(Xs=None, Ys=None, Xt=None, Yt=None, args=None):
 
         # Online(Incremental) EA
         # Much proper way to do EA for target subject considering online BCIs
-        # For offline EA, refer to tl/utils/alg_utils.py line12
+        # For offline EA, refer to tl/utils/alg_utils.py
         Xt_aligned = []
         R = 0
         num_samples = 0
