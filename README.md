@@ -5,6 +5,9 @@ The official implementation of our paper [`T-TIME: Test-Time Information Maximiz
 
 **News**: The implementation for DPL (paper currently under review) will be updated once when the papers are accepted. They are all implemented under this identical framework for easier reproduction.
 
+## for Newbie
+If you are unfamiliar with deep learning, EEG decoding, Python, go [here](https://github.com/sylyoung/DeepTransferEEG/blob/main/easy_demo/EEGNet_demo.py) for a one-file demo with VERY detailed comment for an easy start of the complete pipeline of EEG decoding 
+
 ## EA
 
 If you just want to know how Euclidean Alignment was done, go [here](https://github.com/sylyoung/DeepTransferEEG/blob/main/tl/utils/utils.py#L475)
