@@ -4,17 +4,20 @@
 # @File    : EEGNet_demo.py
 # This one-file-code serves as a simple demo for those who are not particularly familiar with EEG decoding, Python, deep learning
 # Comments will help you understand each line of code
+# run 'python EEGNet_demo.py' at this directory in commandline
+# or run it using IDE software like PyCharm
+
 # This file considers EEG data from the Motor Imagery paradigm, to decode the movement intentions of subjects/users, using deep learning
-# This file randomly created the EEG data, if the data are not given at path ./args.data_name/X.npy numpy array of shape (num_trials, num_channels, num_timesamples) such as (1000, 59, 1000). Similarly for labels at path /args.data_name/labels.npy of shape (num_trials, )
+# This file randomly created the EEG data, if the data are not given at path ./args.data_name/X.npy numpy array of shape (number_EEG_trials, number_channels, number_time_samples) such as (1000, 59, 1000). Similarly for labels at path /args.data_name/labels.npy of shape (number_trials, )
 # You could download the examplar EEG data at https://www.bbci.de/competition/iv/ , after application
 
 # We apply a pipeline of
 # 1) specify hyperparameters of the experiments
 # 2) EEG loading (if not supplied, create random EEG data)
-# 3) go into each individual experiment (multiple experiments must be run for each subject and for each random seed)
-# 4) apply Euclidean Alignment (if needed)
-# 5) apply Channel Reflection data augmentation (if needed)
-# 6) initialize and train the network, output training loss and test set accuracy during each epoch
+# 3) go into each individual experiment (multiple such individual experiments must be run for each subject and for each random seed)
+# 4) apply Euclidean Alignment for normalization for cross-subject decoding (if needed)
+# 5) apply Channel Reflection for training data augmentation (if needed)
+# 6) initialize and train the network, output training loss, test set accuracy during each epoch
 # 7) output final performance (test set accuracy after last epoch)
 
 
@@ -37,7 +40,7 @@ import sys
 import random
 from pathlib import Path
 ########################################################################################################################
-# after this import part is done, the main function is executed, at line 608
+# !IMPORTANT after this import part is done, the main function is executed, at line 611
 
 
 # EEGNet-v4

@@ -1,12 +1,11 @@
 # Transfer Learning for EEG
 
-Welcome! This repo aims to achieve simple contemporary deep transfer learning for EEG analysis, specifically brain-computer interface (BCI) applications.
-The official implementation of our paper [`T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs`](https://ieeexplore.ieee.org/abstract/document/10210666) (**IEEE TBME, 2024**)
+Welcome! This repo aims to achieve simple contemporary deep (transfer) learning for Python-based EEG analysis, specifically brain-computer interface (BCI) applications.
 
-**News**: The implementation for DPL (paper currently under review) will be updated once when the papers are accepted. They are all implemented under this identical framework for easier reproduction.
+Also The official implementation of our paper [`T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs`](https://ieeexplore.ieee.org/abstract/document/10210666) (**IEEE TBME, 2024**)
 
 ## for Newbie
-If you are unfamiliar with deep learning, EEG decoding, Python, go [here](https://github.com/sylyoung/DeepTransferEEG/blob/main/easy_demo/EEGNet_demo.py) for a one-file demo with VERY detailed comment for an easy start of the complete pipeline of EEG decoding 
+If you are unfamiliar with deep learning, EEG decoding, or Python, go [here](https://github.com/sylyoung/DeepTransferEEG/blob/main/easy_demo/EEGNet_demo.py) for a one-file demo with VERY detailed comments for an easy start of the complete pipeline of EEG decoding 
 
 ## EA
 
