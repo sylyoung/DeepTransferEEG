@@ -9,7 +9,12 @@ baselines on a common [EEGNet](https://iopscience.iop.org/article/10.1088/1741-2
 - **T-TIME** — *Test-Time Information Maximization Ensemble for Plug-and-Play BCIs*, IEEE TBME, 2024. [[Paper](https://ieeexplore.ieee.org/abstract/document/10210666)] [[BibTeX](#citation)]
 - **BFT** — *Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based Brain–Computer Interfaces*, arXiv, 2026. [[Paper](https://arxiv.org/abs/2601.07556)] [[BibTeX](#citation)]
 
-<p align="center"><img src="figures/ttime_flowchart.png" width="88%"></p>
+<p align="center"><img src="figures/ttime_settings.png" width="70%"></p>
+
+*The three transfer-learning settings for a fully unlabeled target user (Fig. 1 of the T-TIME paper):
+(a) UDA and (b) SFUDA adapt **offline** with all target data at once, whereas (c) **test-time
+adaptation (TTA)** — the setting both methods here target — must classify a **streaming** target
+online.*
 
 ## Overview
 
@@ -54,9 +59,11 @@ details.
 
 ## T-TIME — Test-Time Information Maximization Ensemble
 
+<p align="center"><img src="figures/ttime_flowchart.png" width="90%"></p>
+
 **T-TIME** accommodates the most challenging transfer setting for BCIs: **online** test-time
 adaptation, where unlabeled EEG trials from a new user arrive in a stream and each must be classified
-on arrival, with no calibration. It combines three ideas (see the flowchart above):
+on arrival, with no calibration. It combines three ideas (shown in the framework above):
 
 - **Aligned source ensemble.** Each source subject's trials are whitened by **Euclidean Alignment
   (EA)** — dividing by the square root of their mean covariance — to reduce inter-subject variability.
@@ -164,7 +171,7 @@ reproduced one method at a time.
 | Method | Category | Description | Reference |
 | --- | --- | --- | --- |
 | **EA** | Alignment | Euclidean Alignment: whitens each subject's trials by their mean covariance to a shared reference; backprop-free and used by all methods below. | IEEE TBME 2020 |
-| **CSP-LDA** | Classical | Common Spatial Patterns + Linear Discriminant Analysis — the classical MI decoding pipeline. | classical |
+| **CSP-LDA** | Classical | Common Spatial Patterns + Linear Discriminant Analysis — the classical MI decoding pipeline. | IEEE SPM 2008 |
 | **EEGNet** | Backbone | Compact convolutional network for EEG; the source model every deep method adapts. | J. Neural Eng. 2018 |
 | **DAN** | UDA | Deep Adaptation Network: aligns feature distributions via multi-kernel MMD. | ICML 2015 |
 | **JAN** | UDA | Joint Adaptation Network: aligns the joint distribution of features and predictions. | ICML 2017 |
@@ -172,7 +179,7 @@ reproduced one method at a time.
 | **CDAN** | UDA | Conditional Domain Adversarial Network: conditions the adversary on classifier predictions. | NeurIPS 2018 |
 | **MDD** | UDA | Margin Disparity Discrepancy: minimizes a margin-based domain discrepancy that bounds target error. | ICML 2019 |
 | **MCC** | UDA | Minimum Class Confusion: reduces pairwise class confusion of target predictions. | ECCV 2020 |
-| **SHOT** | SFUDA | Source HypOthesis Transfer: freezes the source classifier and adapts features by information maximization + self-supervised pseudo-labels. | ICML 2020 |
+| **SHOT** | SFUDA | Source HypOthesis Transfer: freezes the source classifier and adapts features by information maximization + self-supervised pseudo-labels. | IEEE TPAMI 2022 |
 | **ISFDA** | SFUDA | Imbalanced Source-Free DA: intra-class tightening and inter-class separation for class-imbalanced targets. | ACM MM 2021 |
 | **BN-adapt** | TTA | Replaces BatchNorm statistics with target-batch statistics. | NeurIPS 2020 |
 | **Tent** | TTA | Test-time entropy minimization over the normalization-layer affine parameters. | ICLR 2021 |
