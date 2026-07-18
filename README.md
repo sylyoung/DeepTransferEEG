@@ -4,6 +4,8 @@ Welcome! This repo aims to achieve simple contemporary deep (transfer) learning 
 
 Also The official implementation of our paper [`T-TIME: Test-Time Information Maximization Ensemble for Plug-and-Play BCIs`](https://ieeexplore.ieee.org/abstract/document/10210666) (**IEEE TBME, 2024**)
 
+Also the official implementation of our paper [`Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based Brain-Computer Interfaces`](https://arxiv.org/abs/2601.07556) (**arXiv, 2026**)
+
 ## for Newbie
 If you are unfamiliar with deep learning, EEG decoding, or Python, go [here](https://github.com/sylyoung/DeepTransferEEG/blob/main/easy_demo/EEGNet_demo.py) for a one-file demo with VERY detailed comments for an easy start of the complete pipeline of EEG decoding 
 
@@ -51,6 +53,13 @@ or
 python ./tl/ttime.py
 ```   
 
+To test the BFT algorithm, run   
+```sh 
+python ./tl/bft.py
+```   
+
+BFT is backpropagation-free and needs no target-subject model update. Choose the variant, `BFT-D` (feature-masked subnetworks) or `BFT-A` (input augmentations), via the `variant` setting in the main function of `./tl/bft.py`.
+
 Other approaches can be executed in a similar way. Run any of   
 ```sh 
 python ./tl/*.py
@@ -75,6 +84,7 @@ Most hyperparameters/configurations of approaches/experiments are under the *arg
 ## Currently Implemented Approaches:
 
 #### *. T-TIME
+#### *. BFT
 #### 0. EA
 #### 1. DAN
 #### 2. JAN 
@@ -110,6 +120,14 @@ If you find this repo helpful, please cite our work:
   pages   = {423-432},
   volume  = {71},
   doi     = {10.1109/TBME.2023.3303289},
+}
+```
+```
+@article{Li2026,
+  author  = {Li, Siyang and Ouyang, Jiayi and Cui, Zhenyao and Wang, Ziwei and Jia, Tianwang and Wan, Feng and Wu, Dongrui},
+  journal = {arXiv preprint arXiv:2601.07556},
+  title   = {Backpropagation-Free Test-Time Adaptation for Lightweight {EEG}-Based Brain-Computer Interfaces},
+  year    = {2026},
 }
 ```
 
