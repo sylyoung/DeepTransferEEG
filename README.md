@@ -1,13 +1,29 @@
-# DeepTransferEEG: Deep Transfer Learning for EEG-Based Brain–Computer Interfaces
+<div align="center">
 
-A PyTorch library for **deep transfer learning on EEG-based brain–computer interfaces (BCIs)**, with a
-focus on **online test-time adaptation (TTA)** — adapting a pre-trained decoder to a *new user* from
-**unlabeled, streaming** EEG, so no per-use calibration session is needed. It is the official
-implementation of two papers, and also bundles ~15 classical and state-of-the-art transfer-learning
-baselines on a common [EEGNet](https://iopscience.iop.org/article/10.1088/1741-2552/aace8c) backbone.
+# DeepTransferEEG
 
-- **T-TIME** — *Test-Time Information Maximization Ensemble for Plug-and-Play BCIs*, IEEE TBME, 2024. [[Paper](https://ieeexplore.ieee.org/abstract/document/10210666)] [[BibTeX](#citation)]
-- **BFT** — *Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based Brain–Computer Interfaces*, arXiv, 2026. [[Paper](https://arxiv.org/abs/2601.07556)] [[BibTeX](#citation)]
+**Deep Transfer Learning for EEG-Based Brain–Computer Interfaces**
+
+Brain-Computer Interface and Machine Learning Laboratory &nbsp;·&nbsp; Huazhong University of Science and Technology
+
+<br>
+
+Online **test-time adaptation** of an EEG decoder to a new user from unlabeled, streaming signals — so no per-use calibration session is needed.
+
+<br>
+
+![Python](https://img.shields.io/badge/python-3.10-3776ab)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0-ee4c2c)
+![Papers](https://img.shields.io/badge/papers-2-4338ca)
+![Methods](https://img.shields.io/badge/methods-20-7c3aed)
+![IEEE TBME](https://img.shields.io/badge/IEEE%20TBME-2024-00629b)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+[**T-TIME paper**](https://ieeexplore.ieee.org/abstract/document/10210666) &nbsp;·&nbsp; [**BFT paper**](https://arxiv.org/abs/2601.07556) &nbsp;·&nbsp; [**BibTeX**](#citation) &nbsp;·&nbsp; [**HUST-BCIML hub**](https://github.com/sylyoung/HUST-BCIML)
+
+</div>
+
+---
 
 <p align="center"><img src="figures/ttime_settings.png" width="70%"></p>
 
@@ -15,6 +31,30 @@ baselines on a common [EEGNet](https://iopscience.iop.org/article/10.1088/1741-2
 (a) UDA and (b) SFUDA adapt **offline** with all target data at once, whereas (c) **test-time
 adaptation (TTA)** — the setting both methods here target — must classify a **streaming** target
 online.*
+
+> **Two papers on test-time adaptation for EEG BCIs**, plus ~15 classical and state-of-the-art
+> transfer-learning baselines on a common [EEGNet](https://iopscience.iop.org/article/10.1088/1741-2552/aace8c) backbone.
+>
+> - **T-TIME** &nbsp;·&nbsp; *Test-Time Information Maximization Ensemble for Plug-and-Play BCIs* &nbsp;·&nbsp; IEEE TBME 2024 &nbsp;·&nbsp; [Paper](https://ieeexplore.ieee.org/abstract/document/10210666) &nbsp;·&nbsp; [BibTeX](#citation)
+> - **BFT** &nbsp;·&nbsp; *Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based BCIs* &nbsp;·&nbsp; arXiv 2026 &nbsp;·&nbsp; [Paper](https://arxiv.org/abs/2601.07556) &nbsp;·&nbsp; [BibTeX](#citation)
+
+## Contents
+
+- [Overview](#overview)
+- [For newcomers](#for-newcomers)
+- [Installation](#installation)
+- [Data](#data)
+- [T-TIME](#t-time)
+- [BFT](#bft)
+- [Implemented baselines](#implemented-baselines)
+- [Hyperparameters](#hyperparameters)
+- [Repository structure](#repository-structure)
+- [Citation](#citation)
+- [Acknowledgements](#acknowledgements)
+- [Contact](#contact)
+- [License](#license)
+
+<br>
 
 ## Overview
 
@@ -27,11 +67,15 @@ immediately**. Both proposed methods operate at test time on a frozen source mod
 the model online by information maximization and a spectral ensemble, while **BFT** adapts using only
 forward passes, with no gradients or parameter updates at all.
 
+<br>
+
 ## For newcomers
 
 New to deep learning, EEG decoding, or Python? Start with the one-file, heavily commented pipeline in
 [`easy_demo/EEGNet_demo.py`](easy_demo/EEGNet_demo.py). If you only want to see how **Euclidean
 Alignment** is implemented, it is [here](tl/utils/utils.py#L475).
+
+<br>
 
 ## Installation
 
@@ -40,6 +84,8 @@ git clone https://github.com/sylyoung/DeepTransferEEG.git
 cd DeepTransferEEG
 conda env create -f environment.yml
 ```
+
+<br>
 
 ## Data
 
@@ -57,7 +103,9 @@ details.
 
 ---
 
-## T-TIME — Test-Time Information Maximization Ensemble
+## T-TIME
+
+**Test-Time Information Maximization Ensemble for Plug-and-Play BCIs** &nbsp;·&nbsp; IEEE TBME 2024
 
 <p align="center"><img src="figures/ttime_flowchart.png" width="90%"></p>
 
@@ -110,7 +158,9 @@ for plug-and-play EEG BCIs.*
 
 ---
 
-## BFT — Backpropagation-Free Test-Time Adaptation
+## BFT
+
+**Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based BCIs** &nbsp;·&nbsp; arXiv 2026
 
 **BFT** (Backpropagation-Free Transformations) brings test-time adaptation to **lightweight,
 resource-constrained** BCI hardware: it adapts using **only forward passes** — no gradients, no
@@ -191,10 +241,14 @@ reproduced one method at a time.
 
 Other approaches can be executed the same way — run any `python ./tl/*.py` for its results.
 
+<br>
+
 ## Hyperparameters
 
 Most hyperparameters/configurations live in the `args` variable inside the `main` function of each
 file, with self-explanatory names.
+
+<br>
 
 ## Repository structure
 
@@ -216,6 +270,8 @@ runs/                   # provided EA + EEGNet source models
 data/  logs/            # datasets and experiment logs
 figures/                # figures used in this README
 ```
+
+<br>
 
 ## Citation
 
@@ -241,16 +297,30 @@ If you find this repo helpful, please cite our work:
 }
 ```
 
+<br>
+
 ## Acknowledgements
 
 All credit for the base framework goes to [Wen Zhang](https://github.com/chamwen); do check out the
 [Negative Transfer](https://github.com/chamwen/NT-Benchmark) project.
+
+<br>
 
 ## Contact
 
 For questions about the papers, contact syoungli@hust.edu.cn or lsyyoungll@gmail.com. For questions
 about the code, please open an Issue.
 
+<br>
+
 ## License
 
 Released under the [MIT License](LICENSE).
+
+---
+
+<div align="center"><sub>
+
+Part of the <a href="https://github.com/sylyoung/HUST-BCIML">HUST-BCIML</a> open-source code home &nbsp;·&nbsp; Brain-Computer Interface and Machine Learning Laboratory, HUST
+
+</sub></div>
