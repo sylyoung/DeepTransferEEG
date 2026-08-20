@@ -6,11 +6,7 @@
 
 Brain-Computer Interface and Machine Learning Laboratory &nbsp;·&nbsp; Huazhong University of Science and Technology
 
-<br>
-
 Online **test-time adaptation** of an EEG decoder to a new user from unlabeled, streaming signals — so no per-use calibration session is needed.
-
-<br>
 
 ![Python](https://img.shields.io/badge/python-3.10-3776ab)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0-ee4c2c)
@@ -54,8 +50,6 @@ online.*
 - [Contact](#contact)
 - [License](#license)
 
-<br>
-
 ## Overview
 
 EEG signals differ markedly across people and drift over time, so a BCI decoder trained on previous
@@ -67,15 +61,11 @@ immediately**. Both proposed methods operate at test time on a frozen source mod
 the model online by information maximization and a spectral ensemble, while **BFT** adapts using only
 forward passes, with no gradients or parameter updates at all.
 
-<br>
-
 ## For newcomers
 
 New to deep learning, EEG decoding, or Python? Start with the one-file, heavily commented pipeline in
 [`easy_demo/EEGNet_demo.py`](easy_demo/EEGNet_demo.py). If you only want to see how **Euclidean
 Alignment** is implemented, it is [here](tl/utils/utils.py#L475).
-
-<br>
 
 ## Installation
 
@@ -84,8 +74,6 @@ git clone https://github.com/sylyoung/DeepTransferEEG.git
 cd DeepTransferEEG
 conda env create -f environment.yml
 ```
-
-<br>
 
 ## Data
 
@@ -212,20 +200,7 @@ not just the extra forward passes, drives the gains.*
 
 ### Supplementary material
 
-The supplement of the BFT paper is included here as
-[**2026_BFT_JBHI_Li_supp.pdf**](paper/BFT/supp/2026_BFT_JBHI_Li_supp.pdf) (4 pages); its LaTeX source
-and figures are in
-[`2026_BFT_JBHI_Li_supp.zip`](paper/BFT/supp/2026_BFT_JBHI_Li_supp.zip). It contains:
-
-- **S-I &nbsp;Theoretical foundation for BFT.** An exact variance decomposition of the
-  reliability-weighted aggregate, and two theorems stating when aggregating `K` transformed
-  predictions lowers predictive variance — first with equal per-branch variance (Theorem 1, Fig. S1),
-  then with heterogeneous variances and correlated branches (Theorem 2), which is the case that
-  justifies weighting branches by their learned reliability instead of averaging them.
-- **S-II &nbsp;Robustness of the reliability-aware aggregation.** Each single transformation family
-  against the full BFT-A bank (Fig. S2); accuracy and latency as the number of branches `K` grows
-  (Fig. S3); accuracy when the learned ranking is replaced by Gaussian-perturbed, random, reversed,
-  or shuffled rankings (Table S1); and alternative aggregation rules for regression (Table S2).
+The supplement of the BFT paper is included here as [**2026_BFT_JBHI_Li_supp.pdf**](paper/BFT/supp/2026_BFT_JBHI_Li_supp.pdf).
 
 ---
 
@@ -258,14 +233,10 @@ reproduced one method at a time.
 
 Other approaches can be executed the same way — run any `python ./tl/*.py` for its results.
 
-<br>
-
 ## Hyperparameters
 
 Most hyperparameters/configurations live in the `args` variable inside the `main` function of each
 file, with self-explanatory names.
-
-<br>
 
 ## Repository structure
 
@@ -288,8 +259,6 @@ data/  logs/            # datasets and experiment logs
 figures/                # figures used in this README
 paper/BFT/supp/         # BFT supplementary material (PDF + LaTeX source)
 ```
-
-<br>
 
 ## Citation
 
@@ -315,21 +284,15 @@ If you find this repo helpful, please cite our work:
 }
 ```
 
-<br>
-
 ## Acknowledgements
 
 All credit for the base framework goes to [Wen Zhang](https://github.com/chamwen); do check out the
 [Negative Transfer](https://github.com/chamwen/NT-Benchmark) project.
 
-<br>
-
 ## Contact
 
 For questions about the papers, contact syoungli@hust.edu.cn or lsyyoungll@gmail.com. For questions
 about the code, please open an Issue.
-
-<br>
 
 ## License
 
