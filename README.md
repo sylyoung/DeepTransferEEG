@@ -13,6 +13,7 @@ Online **test-time adaptation** of an EEG decoder to a new user from unlabeled, 
 ![Papers](https://img.shields.io/badge/papers-2-4338ca)
 ![Methods](https://img.shields.io/badge/methods-20-7c3aed)
 ![IEEE TBME](https://img.shields.io/badge/IEEE%20TBME-2024-00629b)
+![IEEE JBHI](https://img.shields.io/badge/IEEE%20JBHI-2026-00629b)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 [**T-TIME paper**](https://ieeexplore.ieee.org/abstract/document/10210666) &nbsp;·&nbsp; [**BFT paper**](https://arxiv.org/abs/2601.07556) &nbsp;·&nbsp; [**BibTeX**](#citation) &nbsp;·&nbsp; [**HUST-BCIML hub**](https://github.com/sylyoung/HUST-BCIML)
@@ -32,7 +33,7 @@ online.*
 > transfer-learning baselines on a common [EEGNet](https://iopscience.iop.org/article/10.1088/1741-2552/aace8c) backbone.
 >
 > - **T-TIME** &nbsp;·&nbsp; *Test-Time Information Maximization Ensemble for Plug-and-Play BCIs* &nbsp;·&nbsp; IEEE TBME 2024 &nbsp;·&nbsp; [Paper](https://ieeexplore.ieee.org/abstract/document/10210666) &nbsp;·&nbsp; [BibTeX](#citation)
-> - **BFT** &nbsp;·&nbsp; *Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based BCIs* &nbsp;·&nbsp; arXiv 2026 &nbsp;·&nbsp; [Paper](https://arxiv.org/abs/2601.07556) &nbsp;·&nbsp; [BibTeX](#citation)
+> - **BFT** &nbsp;·&nbsp; *Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based BCIs* &nbsp;·&nbsp; IEEE Journal of Biomedical and Health Informatics, 2026 (accepted) &nbsp;·&nbsp; [arXiv](https://arxiv.org/abs/2601.07556) &nbsp;·&nbsp; [BibTeX](#citation)
 
 ## Contents
 
@@ -148,7 +149,7 @@ for plug-and-play EEG BCIs.*
 
 ## BFT
 
-**Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based BCIs** &nbsp;·&nbsp; arXiv 2026
+**Backpropagation-Free Test-Time Adaptation for Lightweight EEG-Based BCIs** &nbsp;·&nbsp; IEEE Journal of Biomedical and Health Informatics, 2026 (accepted)
 
 **BFT** (Backpropagation-Free Transformations) brings test-time adaptation to **lightweight,
 resource-constrained** BCI hardware: it adapts using **only forward passes** — no gradients, no
@@ -276,11 +277,12 @@ If you find this repo helpful, please cite our work:
   doi     = {10.1109/TBME.2023.3303289},
 }
 
-@article{Li2026,
+@Article{Li2026,
   author  = {Li, Siyang and Ouyang, Jiayi and Cui, Zhenyao and Wang, Ziwei and Jia, Tianwang and Wan, Feng and Wu, Dongrui},
-  journal = {arXiv preprint arXiv:2601.07556},
+  journal = {IEEE Journal of Biomedical and Health Informatics},
   title   = {Backpropagation-Free Test-Time Adaptation for Lightweight {EEG}-Based Brain-Computer Interfaces},
   year    = {2026},
+  note    = {accepted},
 }
 ```
 
