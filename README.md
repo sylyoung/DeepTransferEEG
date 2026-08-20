@@ -210,6 +210,23 @@ driver-drowsiness regression on Driving and SEED-VIG (Table V). Both BFT variant
 their unweighted counterparts (Aug-Mean / Mask-Mean), confirming that the learned reliability ranking,
 not just the extra forward passes, drives the gains.*
 
+### Supplementary material
+
+The supplement of the BFT paper is included here as
+[**2026_BFT_JBHI_Li_supp.pdf**](paper/BFT/supp/2026_BFT_JBHI_Li_supp.pdf) (4 pages); its LaTeX source
+and figures are in
+[`2026_BFT_JBHI_Li_supp.zip`](paper/BFT/supp/2026_BFT_JBHI_Li_supp.zip). It contains:
+
+- **S-I &nbsp;Theoretical foundation for BFT.** An exact variance decomposition of the
+  reliability-weighted aggregate, and two theorems stating when aggregating `K` transformed
+  predictions lowers predictive variance — first with equal per-branch variance (Theorem 1, Fig. S1),
+  then with heterogeneous variances and correlated branches (Theorem 2), which is the case that
+  justifies weighting branches by their learned reliability instead of averaging them.
+- **S-II &nbsp;Robustness of the reliability-aware aggregation.** Each single transformation family
+  against the full BFT-A bank (Fig. S2); accuracy and latency as the number of branches `K` grows
+  (Fig. S3); accuracy when the learned ranking is replaced by Gaussian-perturbed, random, reversed,
+  or shuffled rankings (Table S1); and alternative aggregation rules for regression (Table S2).
+
 ---
 
 ## Implemented baselines
@@ -269,6 +286,7 @@ deployment/             # real-time online BCI deployment (Neuracle device)
 runs/                   # provided EA + EEGNet source models
 data/  logs/            # datasets and experiment logs
 figures/                # figures used in this README
+paper/BFT/supp/         # BFT supplementary material (PDF + LaTeX source)
 ```
 
 <br>
