@@ -199,6 +199,12 @@ driver-drowsiness regression on Driving and SEED-VIG (Table V). Both BFT variant
 their unweighted counterparts (Aug-Mean / Mask-Mean), confirming that the learned reliability ranking,
 not just the extra forward passes, drives the gains.*
 
+### Full paper implementation
+
+`./tl/bft.py` above is the benchmark entry point, run the same way as every other method here. The
+code for the paper's other experiments, including the regression task, the SoDeep mapping module,
+the test-time corruptions and the latency study, is in [**paper/BFT/code/**](paper/BFT/code/).
+
 ### Supplementary material
 
 The supplement of the BFT paper is included here as [**2026_BFT_JBHI_Li_supp.pdf**](paper/BFT/supp/2026_BFT_JBHI_Li_supp.pdf).
@@ -258,7 +264,8 @@ deployment/             # real-time online BCI deployment (Neuracle device)
 runs/                   # provided EA + EEGNet source models
 data/  logs/            # datasets and experiment logs
 figures/                # figures used in this README
-paper/BFT/supp/         # BFT supplementary material (PDF + LaTeX source)
+paper/BFT/code/         # BFT full paper implementation (both tasks, all experiments)
+paper/BFT/supp/         # BFT supplementary material (PDF)
 ```
 
 ## Citation

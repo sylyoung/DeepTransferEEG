@@ -1,0 +1,23 @@
+# Core method (training and inference)
+# torch >= 1.13 is required, not 1.12: sodeep/sodeep.py calls torch.load with
+# weights_only, which was introduced in 1.13.
+torch>=1.13
+numpy>=1.21
+scipy>=1.7
+
+# Used by the transformation banks, the corruption bank and the loaders
+# PyWavelets provides pywt, used by BFT-classify/models/augment_trainset.py
+PyWavelets>=1.3
+scikit-learn>=1.0
+
+# EEG Conformer and Deformer backbones (BFT-regression/models/)
+einops>=0.6
+
+# Training-time progress and logging
+# tqdm: BFT-regression/utils/get_psd.py
+# tensorboardX: sodeep/train.py, the mapping-module trainer
+tqdm>=4.60
+tensorboardX>=2.5
+
+# Optional: dataset loading and preprocessing helpers used by some loaders
+# mne>=1.0

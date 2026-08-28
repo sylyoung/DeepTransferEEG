@@ -138,4 +138,8 @@ multi_source_ensemble.py
 maml.py
 aug_utils.py
 test.py
+# ...but the paper implementation's two inference entry points are real code,
+# not the scratch test.py the rule above is meant to exclude
+!paper/BFT/code/BFT-classify/test.py
+!paper/BFT/code/BFT-regression/test.py
 feature_ssda.py
