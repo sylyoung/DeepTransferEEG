@@ -3,7 +3,16 @@ import os
 import numpy as np
 import moabb
 
-from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2015001
+try:
+    # moabb < 1.0
+    from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2015001
+except ImportError:
+    # moabb >= 1.0 renamed the BNCI classes, BNCI2014001 becoming BNCI2014_001,
+    # and kept no aliases, so importing the old names raises. Aliasing the new
+    # names back means this file works on the moabb==0.4.6 that environment.yml
+    # pins and on a current install, without either having to change.
+    from moabb.datasets import BNCI2014_001 as BNCI2014001, BNCI2014_002 as BNCI2014002, \
+        BNCI2015_001 as BNCI2015001
 from moabb.paradigms import MotorImagery, P300
 
 

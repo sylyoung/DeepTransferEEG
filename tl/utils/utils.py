@@ -13,15 +13,24 @@ import torch.utils.data
 import torch.utils.data as Data
 import moabb
 import mne
-import learn2learn as l2l
 from sklearn.metrics import balanced_accuracy_score, accuracy_score, roc_auc_score
 from scipy.linalg import fractional_matrix_power
-from learn2learn.data.transforms import NWays, KShots, LoadData
 
 from utils.alg_utils import EA, EA_online
 
-from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2014008, BNCI2014009, BNCI2015003, BNCI2015004, EPFLP300, \
-    BNCI2014004, BNCI2015001
+try:
+    # moabb < 1.0
+    from moabb.datasets import BNCI2014001, BNCI2014002, BNCI2014008, BNCI2014009, BNCI2015003, BNCI2015004, EPFLP300, \
+        BNCI2014004, BNCI2015001
+except ImportError:
+    # moabb >= 1.0 renamed the BNCI classes, BNCI2014001 becoming BNCI2014_001,
+    # and kept no aliases, so importing the old names raises. Aliasing the new
+    # names back means this file works on the moabb==0.4.6 that environment.yml
+    # pins and on a current install, without either having to change.
+    from moabb.datasets import BNCI2014_001 as BNCI2014001, BNCI2014_002 as BNCI2014002, \
+        BNCI2014_008 as BNCI2014008, BNCI2014_009 as BNCI2014009, BNCI2015_003 as BNCI2015003, \
+        BNCI2015_004 as BNCI2015004, EPFLP300, \
+        BNCI2014_004 as BNCI2014004, BNCI2015_001 as BNCI2015001
 from moabb.paradigms import MotorImagery, P300
 
 
